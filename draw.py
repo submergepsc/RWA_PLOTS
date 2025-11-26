@@ -8,7 +8,7 @@ def plot_handled_num(df: pd.DataFrame, out_dir: str = "figure", use_log_time: bo
     plt.figure(figsize=(12, 8))
     for col in df.columns:
         if col == "time":
-            continue
+            continue    
         if use_log_time:
             x_vals = np.log(np.asarray(df["time"]).astype(float))
         else:
