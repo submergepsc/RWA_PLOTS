@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RWA-FastOracle 全景性能深度分析脚本 (8 图体系)
-覆盖队列动力学、吞吐量稳定性、证书微观特征的 8 个维度可视化。
+RWA-FastOracle 全景性能深度分析脚本 (8 图体系) - 字体修正版
 """
 
 import matplotlib.pyplot as plt
@@ -14,7 +13,6 @@ import seaborn as sns
 
 # ================= 全局配置区域 =================
 
-# 统一的协议名称、颜色和图例标签
 PROTOCOLS = {
     'committee': {'label': 'Ours', 'color': '#1f77b4'},
     'daon': {'label': 'Daon', 'color': '#ff7f0e'},
@@ -22,7 +20,10 @@ PROTOCOLS = {
     'seenfeed': {'label': 'Seenfeed', 'color': '#d62728'},
     'deepthought': {'label': 'Deepthought', 'color': '#9467bd'}
 }
+<<<<<<< HEAD
 # 队列衰减分析使用的最小队列阈值（降低以获取更多样本）
+=======
+>>>>>>> 9355776 (jfdk)
 MIN_QUEUE_THRESHOLD = 50
 
 # ================= 辅助函数区域 =================
@@ -45,22 +46,11 @@ def get_log_time(time_series, bios=550):
     log_t = np.log(time_series[valid_mask] - bios)
     return log_t, valid_mask
 
-def set_plot_style():
-    """统一的绘图样式设置"""
-    plt.rcParams.update({
-        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
-        'axes.unicode_minus': False, 'font.size': 18,
-        'axes.labelsize': 20, 'axes.titlesize': 22,
-        'xtick.labelsize': 24, 'ytick.labelsize': 24,
-        'legend.fontsize': 20,
-        'figure.figsize': (12, 8),
-        'grid.linestyle': '--', 'grid.alpha': 0.6
-    })
-
 # ================= Group 1: 队列长度 (Queue) =================
 
 def plot_queue_log_dynamics(network: str, out_dir: str):
     """【图1】队列消减动力学图 (Log-Time)"""
+<<<<<<< HEAD
     plt.rcParams.update({
         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
         'axes.unicode_minus': False, 'font.size': 18,
@@ -70,11 +60,33 @@ def plot_queue_log_dynamics(network: str, out_dir: str):
         'figure.figsize': (12, 8),
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
+=======
+    # 为当前绘图函数单独配置字号、字体与网格样式，避免影响其他图
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,         # 16 * 2
+        'axes.titlesize': 18,
+        'xtick.labelsize': 34,        # 14 * 2
+        'ytick.labelsize': 34,
+        'legend.fontsize': 32,       # 18 * 2
+        'figure.figsize': (12, 9),
+        'grid.linestyle': '--', 'grid.alpha': 0.6
+    })
+    
+>>>>>>> 9355776 (jfdk)
     print(f"-> [1/8] Queue Log-Dynamics ({network})...")
+    # 读取队列长度随时间变化的数据表，用于绘制排队长度曲线
     df = pd.read_csv(f"total_q_len_{network}.csv")
     plt.figure()
     
     bios_val = 550 if network == 'pow' else 0
+<<<<<<< HEAD
+=======
+    # PoW 使用对数横轴，避免前期起伏太小；PoS 则保持线性时间轴
+>>>>>>> 9355776 (jfdk)
     if network == 'pow':
         x_vals, mask = get_log_time(df['time'], bios=bios_val)
         x_label = f"Log Time (t > {bios_val})"
@@ -87,17 +99,26 @@ def plot_queue_log_dynamics(network: str, out_dir: str):
     
     for key, config in PROTOCOLS.items():
         if key in df.columns:
+<<<<<<< HEAD
+=======
+            # 仅对符合掩码的时刻绘制队列长度，并突出我方协议的视觉权重
+>>>>>>> 9355776 (jfdk)
             y_vals = df.loc[mask, key]
-            
-            # 样式: Ours 加粗置顶
             zorder = 10 if key == 'committee' else 1
             lw = 4.0 if key == 'committee' else 2.5
             alpha = 1.0 if key == 'committee' else 0.8
+<<<<<<< HEAD
             
             plt.plot(x_vals, y_vals, label=config['label'], color=config['color'],
                      linewidth=lw, alpha=alpha, zorder=zorder)
 
     plt.title(f"Queue Draining Dynamics{title_suffix}")
+=======
+            plt.plot(x_vals, y_vals, label=config['label'], color=config['color'],
+                     linewidth=lw, alpha=alpha, zorder=zorder)
+
+    # plt.title(f"Queue Draining Dynamics{title_suffix}")
+>>>>>>> 9355776 (jfdk)
     plt.xlabel(x_label)
     plt.ylabel("Queue Length")
     plt.legend(loc='upper right')
@@ -107,6 +128,7 @@ def plot_queue_log_dynamics(network: str, out_dir: str):
     plt.close()
 
 def plot_queue_heatmap(network: str, out_dir: str):
+<<<<<<< HEAD
     """【图2】队列积压热力图 (Strip Plot)"""
     # set_plot_style()
     # print(f"-> [2/8] Queue Backlog Strip Plot ({network})...")
@@ -167,15 +189,48 @@ def plot_queue_decay_kde(network: str, out_dir: str):
 
     # 1. Prepare Data
     decay_datasets = []
+=======
+    pass
+
+def plot_queue_decay_kde(network: str, out_dir: str):
+    """【图3】队列衰减速率分布图"""
+    # 局部调整图形风格，使密度曲线在输出 PDF 上保持一致的字号
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,
+        'axes.titlesize': 18,
+        'xtick.labelsize': 28,
+        'ytick.labelsize': 28,
+        'legend.fontsize': 28,
+        'figure.figsize': (12, 9),
+        'grid.linestyle': '--', 'grid.alpha': 0.6
+    })
+    print(f"-> [3/8] Queue Decay Rate KDE ({network.upper()})...")
+>>>>>>> 9355776 (jfdk)
     
+    try:
+        # 读取队列长度随时间的原始数据，用于估计衰减速率
+        df = pd.read_csv(f"total_q_len_{network}.csv")
+    except FileNotFoundError:
+        print(f"   [Error] File not found: total_q_len_{network}.csv")
+        return
+
+    decay_datasets = []
     for key, config in PROTOCOLS.items():
         if key in df.columns:
+<<<<<<< HEAD
             # Filter for active draining phase (> 100 items in queue)
+=======
+            # 仅保留队列长度较大时的片段，避免噪声影响衰减速率估计
+>>>>>>> 9355776 (jfdk)
             mask = df[key] > 100
             if mask.sum() < 10: continue
-            
             q_series = df.loc[mask, key]
             t_series = df.loc[mask, 'time']
+<<<<<<< HEAD
             
             # Calculate Rate: -dQ / dt
             # Note: We use abs() to ensure positive rates for draining
@@ -193,22 +248,43 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         return
 
     # 2. Check for Outlier (Broken Axis Condition, only for non-PoW)
+=======
+            # 衰减速率定义为队列长度下降量与时间间隔之比，并过滤异常值
+            decay_rate = -q_series.diff() / t_series.diff()
+            decay_rate = decay_rate.replace([np.inf, -np.inf], np.nan).dropna()
+            decay_rate = decay_rate[decay_rate > 1.0]
+            if decay_rate.empty: continue
+            decay_datasets.append((key, decay_rate, config))
+
+    if not decay_datasets: return
+
+    # 统计各协议衰减速率的最大值，用于判断是否需要断轴展示
+>>>>>>> 9355776 (jfdk)
     max_rates = [d.max() for _, d, _ in decay_datasets]
     global_max = max(max_rates)
     sorted_max = sorted(max_rates)
     second_max = sorted_max[-2] if len(sorted_max) > 1 else global_max
     need_break = (len(sorted_max) > 1) and (global_max > second_max * 3)
 
+<<<<<<< HEAD
     # 3. Setup Plots
     if network == 'pow':
         fig, ax = plt.subplots(figsize=(12, 7))
+=======
+    if network == 'pow':
+        fig, ax = plt.subplots(figsize=(12, 10))
+>>>>>>> 9355776 (jfdk)
         axes = [ax]
         ax.set_xlim(0, 600)
         ax.set_ylim(0, 0.05)
         need_break = False
     elif need_break:
         fig, (ax_left, ax_right) = plt.subplots(
+<<<<<<< HEAD
             1, 2, sharey=True, figsize=(12, 7),
+=======
+            1, 2, sharey=True, figsize=(12, 10),
+>>>>>>> 9355776 (jfdk)
             gridspec_kw={'width_ratios': [3, 1], 'wspace': 0.05}
         )
         axes = [ax_left, ax_right]
@@ -227,6 +303,7 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         ax_right.plot((-d, +d), (-d, +d), **kwargs)
         ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)
     else:
+<<<<<<< HEAD
         fig, ax = plt.subplots(figsize=(12, 7))
         axes = [ax]
         ax.set_xlim(left=0)
@@ -262,19 +339,54 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         else:
             axes[0].legend(loc='upper right')
             axes[0].set_xlabel("Decay Rate (Requests / s)")
+=======
+        fig, ax = plt.subplots(figsize=(12, 10))
+        axes = [ax]
+        ax.set_xlim(left=0)
+
+    for ax_curr in axes:
+        for key, rates, config in decay_datasets:
+            try:
+                # 使用 KDE 平滑衰减速率分布，帮助比较各协议的尾部行为
+                sns.kdeplot(
+                    data=rates, color=config['color'], fill=True, alpha=0.1, 
+                    linewidth=2.5, ax=ax_curr, label=config['label'], warn_singular=False
+                )
+            except: pass
+
+    if network == 'pow':
+        handles, labels = axes[0].get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        axes[0].legend(by_label.values(), by_label.keys(), loc='upper right')
+        axes[0].set_xlabel("Decay Rate (Requests / s)")
+    elif need_break:
+        handles, labels = axes[0].get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        axes[0].legend(by_label.values(), by_label.keys(), loc='upper right')
+        axes[0].set_xlabel("Decay Rate (Requests / s)")
+        axes[1].set_xlabel("")
+    else:
+        axes[0].legend(loc='upper right')
+        axes[0].set_xlabel("Decay Rate (Requests / s)")
+>>>>>>> 9355776 (jfdk)
 
     axes[0].set_ylabel("Density")
     for ax in axes:
         ax.grid(True, axis='y', linestyle='--', alpha=0.5)
 
+<<<<<<< HEAD
     plt.suptitle(f"Queue Decay Rate Distribution ({network.upper()})", y=0.96)
     
+=======
+    # plt.suptitle(f"Queue Decay Rate Distribution ({network.upper()})", y=0.96)
+>>>>>>> 9355776 (jfdk)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "queue_decay_kde.pdf")
     plt.savefig(out_path, format="pdf")
     plt.close()
     print(f"   [OK] Saved: {out_path}")
 
+<<<<<<< HEAD
 # ================= Group 2: 吞吐量 (Throughput) =================
  
 def plot_throughput_stability(network: str, out_dir: str):
@@ -291,12 +403,31 @@ def plot_throughput_stability(network: str, out_dir: str):
         'axes.labelsize': 20, 'axes.titlesize': 22,
         'xtick.labelsize': 24, 'ytick.labelsize': 24,
         'legend.fontsize': 20,
+=======
+# ================= Group 2: 吞吐量 (Throughput) ================= 
+
+def plot_throughput_stability(network: str, out_dir: str):
+    """【图4】吞吐量稳定性分析 (双重断轴版)"""
+    # 为吞吐量曲线配置局部样式，以保持不同网络输出的一致性
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,
+        'axes.titlesize': 18,
+        'xtick.labelsize': 28,
+        'ytick.labelsize': 28,
+        'legend.fontsize': 28,
+>>>>>>> 9355776 (jfdk)
         'figure.figsize': (12, 8),
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
     
     print(f"-> [4/8] Throughput Stability ({network})...")
+    # 读取累计处理请求数，并转换为瞬时 TPS 序列
     df = pd.read_csv(f"total_handled_num_{network}.csv")
+<<<<<<< HEAD
     df_tps = calculate_throughput(df) # 假设外部有此函数
 
     # --- 数据准备 ---
@@ -383,35 +514,166 @@ def plot_throughput_stability(network: str, out_dir: str):
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, "throughput_stability.pdf"), format="pdf")
     print("Done.")
+=======
+    df_tps = calculate_throughput(df) 
+
+    bios_val = 550 if network == 'pow' else 0
+    # 滤除预热阶段数据并对时间轴做平移，使不同网络对齐
+    mask = df_tps['time'] > bios_val
+    x_vals = df_tps.loc[mask, 'time'] - bios_val
+    x_label = "Time (s)"
+
+    # PoW
+    if network == 'pow':
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(12, 8),
+                                       gridspec_kw={'height_ratios': [1, 6]})
+        fig.subplots_adjust(hspace=0.05) 
+
+        for key, config in PROTOCOLS.items():
+            if key in df_tps.columns:
+                # 使用滑动平均削弱瞬时波动，让长期趋势更易比较
+                raw_tps = df_tps.loc[mask, key]
+                rolling_mean = raw_tps.rolling(window=20, min_periods=1).mean()
+                zorder = 10 if key == 'committee' else 1
+                alpha = 0.9 if key == 'committee' else 0.7
+                lw = 3.0
+                ax1.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
+                         linewidth=lw, alpha=alpha, zorder=zorder)
+                ax2.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
+                         linewidth=lw, alpha=alpha, zorder=zorder)
+
+        ax1.set_ylim(250, 400)  
+        ax2.set_ylim(-2, 60)    
+        ax2.set_xlim(left=0, right=22000)
+
+        ax1.spines['bottom'].set_visible(False)
+        ax2.spines['top'].set_visible(False)
+        ax1.tick_params(labeltop=False, bottom=False)
+        ax2.xaxis.tick_bottom()
+
+        d = .015 
+        kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+        ax1.plot((-d, +d), (-d, +d), **kwargs)        
+        ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)  
+        kwargs.update(transform=ax2.transAxes)
+        ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)  
+        ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+        # ax1.set_title(f"Throughput Stability")
+        # --- 修正：之前建议把 PoW 的图例移到下方 ax2，这里保留原逻辑，但改一下位置防止遮挡 ---
+        # 如果上方空间太窄，还是建议放在下方；这里我用 loc='upper right' 放在下方子图
+        ax2.legend(loc='upper right') 
+        
+        ax2.set_ylabel("Throughput (TPS)")
+        ax2.yaxis.set_label_coords(-0.08, 0.5, transform=ax2.transAxes)
+        ax2.set_xlabel(x_label)
+        ax1.grid(True)
+        ax2.grid(True)
+        plt.tight_layout()
+        plt.subplots_adjust(hspace=0.05)
+
+    # PoS
+    else:
+        fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(12, 8),
+                                       gridspec_kw={'width_ratios': [4, 1]})
+        fig.subplots_adjust(wspace=0.05)
+
+        for key, config in PROTOCOLS.items():
+            if key in df_tps.columns:
+                raw_tps = df_tps.loc[mask, key]
+                rolling_mean = raw_tps.rolling(window=20, min_periods=1).mean()
+                zorder = 10 if key == 'committee' else 1
+                alpha = 0.9 if key == 'committee' else 0.7
+                lw = 3.0
+                # 左右拆分时间轴，使后期偶发波动可以放大观察
+                ax1.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
+                         linewidth=lw, alpha=alpha, zorder=zorder)
+                ax2.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
+                         linewidth=lw, alpha=alpha, zorder=zorder)
+        
+        ax1.set_xlim(0, 22000)
+        if len(x_vals) > 0:
+            total_time = x_vals.max()
+            if total_time > 27000:
+                ax2.set_xlim(total_time - 5000, total_time+500)
+
+        ax1.spines['right'].set_visible(False)
+        ax2.spines['left'].set_visible(False)
+        ax1.tick_params(labelright=False, right=False)
+        ax2.tick_params(labelleft=False, left=False)   
+        ax2.yaxis.tick_right() 
+        ax2.tick_params(right=False) 
+
+        d = .015 
+        kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+        ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs) 
+        ax1.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs) 
+
+        kwargs.update(transform=ax2.transAxes)
+        ax2.plot((-d, +d), (-d, +d), **kwargs) 
+        ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs) 
+
+        # fig.suptitle(f"Throughput Stability", y=0.95, fontsize=18) # 标题稍微调小
+        ax1.set_ylabel("Throughput (TPS)")
+        ax1.set_xlabel(x_label)
+        ax2.set_xlabel(x_label)
+        ax2.legend(loc='upper right')
+        
+        ax1.grid(True)
+        ax2.grid(True)
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0.05, top=0.9)
+
+    save_path = os.path.join(out_dir, "throughput_stability.pdf")
+    plt.savefig(save_path, format="pdf")
+    print(f"Saved to {save_path}")
+>>>>>>> 9355776 (jfdk)
     plt.close()
 
 
 
 def plot_throughput_violin(network: str, out_dir: str):
     """【图5】吞吐量统计分布图 (Violin)"""
+<<<<<<< HEAD
     plt.rcParams.update({
         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
         'axes.unicode_minus': False, 'font.size': 18,
         'axes.labelsize': 20, 'axes.titlesize': 22,
         'xtick.labelsize': 24, 'ytick.labelsize': 24,
         'legend.fontsize': 20,
+=======
+    # 调整图形风格，便于直接输出到论文级别的图表
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,
+        'axes.titlesize': 18,
+        'xtick.labelsize': 28,
+        'ytick.labelsize': 28,
+        'legend.fontsize': 28,
+>>>>>>> 9355776 (jfdk)
         'figure.figsize': (12, 8),
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
     print(f"-> [5/8] Throughput Violin ({network})...")
+    # 读取总处理数并换算成 TPS 分布，便于比较各协议稳定性
     df = pd.read_csv(f"total_handled_num_{network}.csv")
     df_tps = calculate_throughput(df)
     
     plot_data = []
     bios_val = 550 if network == 'pow' else 0
+    # 过滤掉预热阶段，并排除极低 TPS 的噪声样本
     valid_indices = df_tps['time'] > bios_val
     
     for col in PROTOCOLS.keys():
         if col in df_tps.columns:
             vals = df_tps.loc[valid_indices, col]
-            vals = vals[vals > 0.1] # 过滤静默期
+            vals = vals[vals > 0.1]
             
             if len(vals) > 0:
+                # 抽样限制最大数据量，避免绘图时内存占用过大
                 if len(vals) > 3000: vals = vals.sample(3000)
                 temp_df = pd.DataFrame({'TPS': vals, 'Protocol': PROTOCOLS[col]['label']})
                 plot_data.append(temp_df)
@@ -420,11 +682,12 @@ def plot_throughput_violin(network: str, out_dir: str):
     long_df = pd.concat(plot_data)
 
     plt.figure()
+    # 小提琴图展示分布形状，并通过配色对应协议身份
     sns.violinplot(x='Protocol', y='TPS', data=long_df, inner="quartile",
                    palette=[p['color'] for p in PROTOCOLS.values() if p['label'] in long_df['Protocol'].unique()],
                    alpha=0.4, linewidth=1.5)
     
-    plt.title("Throughput Performance Distribution")
+    # plt.title("Throughput Performance Distribution")
     plt.ylabel("TPS")
     plt.xlabel("")
     plt.grid(axis='y', linestyle='--')
@@ -433,6 +696,7 @@ def plot_throughput_violin(network: str, out_dir: str):
     plt.close()
 
 def plot_cumulative_workload(network: str, out_dir: str):
+<<<<<<< HEAD
     """【图6】累积工作量堆叠图 (Cumulative Area)"""
     # set_plot_style()
     # print(f"-> [6/8] Cumulative Workload Area ({network})...")
@@ -473,26 +737,41 @@ def plot_cumulative_workload(network: str, out_dir: str):
     # plt.tight_layout()
     # plt.savefig(os.path.join(out_dir, "cumulative_workload.pdf"), format="pdf")
     # plt.close()
+=======
+>>>>>>> 9355776 (jfdk)
     pass
 
 # ================= Group 3: 证书生成 (Certificate) =================
 
 def plot_cert_burst_scatter(network: str, out_dir: str):
     """【图7】证书生成脉冲散点图 (Burst Scatter)"""
+<<<<<<< HEAD
     plt.rcParams.update({
         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
         'axes.unicode_minus': False, 'font.size': 18,
         'axes.labelsize': 20, 'axes.titlesize': 22,
         'xtick.labelsize': 24, 'ytick.labelsize': 24,
         'legend.fontsize': 20,
+=======
+    # 针对证书生成事件配置绘图风格，便于凸显密度和阈值差异
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,
+        'axes.titlesize': 18,
+        'xtick.labelsize': 28,
+        'ytick.labelsize': 28,
+        'legend.fontsize': 28,
+>>>>>>> 9355776 (jfdk)
         'figure.figsize': (12, 8),
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
     print(f"-> [7/8] Certificate Burst Scatter ({network})...")
     
-    # 使用 handled_num 来模拟证书生成
-    # 假设每 15 个请求生成一个证书
-    BATCH_SIZE = 15
+    # 为不同网络单独设置证书生成阈值，保证散点具有可见密度
+    BATCH_SIZE =2 if network=='pow' else 5
     df = pd.read_csv(f"total_handled_num_{network}.csv")
     
     plt.figure(figsize=(14, 6))
@@ -500,25 +779,23 @@ def plot_cert_burst_scatter(network: str, out_dir: str):
     
     for idx, key in enumerate(protocols):
         if key in df.columns:
-            # 计算每个时间步新增的证书数量
+            # 利用累计处理数的增量估计证书数量，筛选出爆发时刻
             new_reqs = df[key].diff().fillna(0)
             new_certs = (new_reqs // BATCH_SIZE).astype(int)
-            
-            # 找出生成证书的时间点
             burst_mask = new_certs > 0
             burst_times = df.loc[burst_mask, 'time']
             burst_sizes = new_certs[burst_mask]
             
             if len(burst_times) > 0:
-                # 绘制散点: y轴是协议索引，点的大小代表生成数量
+                # 使用散点大小编码一次爆发中生成的证书数，纵轴区别协议
                 plt.scatter(burst_times, [idx]*len(burst_times), 
-                            s=burst_sizes*5, # 大小随数量变化
+                            s=burst_sizes*5, 
                             color=PROTOCOLS[key]['color'], 
                             alpha=0.6, label=PROTOCOLS[key]['label'])
 
     plt.yticks(range(len(protocols)), [PROTOCOLS[p]['label'] for p in protocols])
     plt.xlabel("Time (s)")
-    plt.title("Certificate Generation Bursts (Micro-View)")
+    # plt.title("Certificate Generation Bursts (Micro-View)")
     
     if network == 'pow':
         plt.xscale('log')
@@ -531,12 +808,26 @@ def plot_cert_burst_scatter(network: str, out_dir: str):
 
 def plot_cert_inter_arrival_cdf(network: str, out_dir: str):
     """【图8】证书生成间隔 CDF (Inter-Arrival Time)"""
+<<<<<<< HEAD
     plt.rcParams.update({
         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
         'axes.unicode_minus': False, 'font.size': 18,
         'axes.labelsize': 20, 'axes.titlesize': 22,
         'xtick.labelsize': 24, 'ytick.labelsize': 24,
         'legend.fontsize': 20,
+=======
+    # 调整图形参数，使累积分布在成图时保持高可读性
+    # --- 字体大小修正 ---
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': 32,
+        'axes.titlesize': 18,
+        'xtick.labelsize': 28,
+        'ytick.labelsize': 28,
+        'legend.fontsize': 28,
+>>>>>>> 9355776 (jfdk)
         'figure.figsize': (12, 8),
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
@@ -548,24 +839,22 @@ def plot_cert_inter_arrival_cdf(network: str, out_dir: str):
     
     for key, config in PROTOCOLS.items():
         if key in df.columns:
-            # 找出生成证书的时间点
+            # 通过请求增量估计证书批次，并获取每次批次的发生时间
             new_reqs = df[key].diff().fillna(0)
             burst_mask = new_reqs >= BATCH_SIZE
             burst_times = df.loc[burst_mask, 'time']
             
             if len(burst_times) > 1:
-                # 计算间隔时间 (Inter-Arrival Time)
+                # 计算相邻爆发的时间间隔，并绘制成累积分布以比较稳定性
                 intervals = burst_times.diff().dropna()
-                # 排序并计算 CDF
                 data = np.sort(intervals)
                 cdf = np.arange(1, len(data) + 1) / len(data)
-                
                 plt.plot(data, cdf, label=config['label'], color=config['color'], linewidth=2.5)
 
-    plt.title("Certificate Inter-Arrival Time CDF")
+    # plt.title("Certificate Inter-Arrival Time CDF")
     plt.xlabel("Inter-Arrival Time (s)")
     plt.ylabel("Cumulative Probability")
-    plt.xscale('log') # 间隔时间可能跨度很大
+    plt.xscale('log')
     plt.legend(loc='lower right')
     plt.grid(True)
     plt.tight_layout()

@@ -1,0 +1,269 @@
+\documentclass[lettersize,journal]{IEEEtran}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{mathrsfs}
+\usepackage{amsfonts}
+%\usepackage{algorithmic}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+% 自定义算法宽度
+
+%\usepackage{algorithmicx}
+%\usepackage{algorithm}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{cite}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{bbding}
+
+%————————————————————————————————————————
+ \usepackage{etoolbox}
+% \usepackage{ulem}
+ \usepackage{lipsum} 
+ \usepackage{tikz}
+ \usepackage{enumitem}
+ \usepackage[most]{tcolorbox} % 引入 tcolorbox 宏包
+
+\tcbset{
+  mybox/.style={
+    breakable,           % 允许跨页
+    enhanced jigsaw,     % 增强拼图模式，允许更复杂的内容布局
+    colframe=black,      % 边框颜色
+    colback=white,       % 背景颜色
+    boxrule=0.2mm,       % 边框厚度
+    width=\columnwidth,    % 框的宽度
+    sharp corners,       % 直角边框
+    before skip=10pt,    % 框上方的间距
+    after skip=10pt,     % 框下方的间距
+    colbacktitle=white,  % 标题背景颜色
+    title=\quad,               %页和跨栏的框,
+    attach title to upper, % 标题附加到框的上部
+    fonttitle=\bfseries, % 标题字体样式
+    center title,        % 标题居中
+    boxsep=5pt,          % 框内内容与边框的距离
+    left=4pt,            % 左边距
+    right=4pt,           % 右边距
+    top=-9pt,            % 上边距
+    bottom=-1pt          % 上边距
+  }
+}
+
+\usepackage{graphicx}
+\makeatletter
+\newcommand*\bigcdot{\mathpalette\bigcdot@{.5}}
+\newcommand*\bigcdot@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
+\makeatother
+%----------------------------------------
+
+\usepackage{url}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[referable]{threeparttablex}
+
+
+\usepackage{multirow} 
+\usepackage{pifont}
+
+\usepackage{subfigure}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+\usepackage{balance}
+\usepackage{orcidlink}
+\usepackage{pifont}
+\newcommand{\circled}[1]{{\normalsize{\textcircled{\scriptsize{#1}}}\normalsize\;}}
+
+
+\SetAlCapSkip{0.5em} % 减少算法标题与内容的间距
+
+\setlength{\algomargin}{1em} % 调整算法整体的左右间距
+
+\newcommand{\code}[1]{\texttt{#1}} %%% 
+
+
+\newcommand{\crossmeta}[0]{\ensuremath{\code{MetaBridge}\;}}
+
+
+%% ---- Comments Format, added by Huawei
+\newcommand{\hhw}[1]{\textcolor{black}{{#1}}} %COMMENTS BY Huawei magenta
+
+\newcommand{\hw}[1]{\textcolor{black}{{#1}}} %COMMENTS BY Huawei magenta
+
+
+\newcommand{\YCL}[1]{\textcolor{black}{{#1}}} %COMMENTS BY Changlin gray
+\newcommand{\Yng}[1]{{\color{black}#1}}%COMMENTS BY Qinglin blue
+\newcommand{\yzk}[1]{{\color{black}#1}} %COMMENTS BY Zhaokang red
+\newcommand{\ltt}[1]{\textcolor{black}{{#1}}} %COMMENTS BY LI Taotao brown
+\newcommand{\lt}[1]{\textcolor{black}{{#1}}} %COMMENTS BY LI Taotao brown
+\newcommand{\lxf}[1]{\textcolor{black}{{#1}}} %COMMENTS BY Xiaofei brown
+%% ---- Comments Format:~
+\newcommand{\revised}[1]{\textcolor{magenta}{{#1}}}
+\newcommand{\todo}[1]{\textcolor{red}{{#1}}} 
+
+
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+
+
+\begin{document}
+\title{\code{FastOracle}: Improving Oracle Throughput and Latency via a Reduced-Size Secure Committee}
+
+
+% \author{Taotao~Li,~Huawei~Huang,~\IEEEmembership{Senior Member,~IEEE,} Xiaofei~Luo, Qinglin~Yang,~\IEEEmembership{Member,~IEEE,}~Zibin~Zheng,~\IEEEmembership{Fellow,~IEEE}
+% %Taotao~Li~\orcidlink{0000-0002-5348-442X},
+% %Huawei~Huang~\orcidlink{0000-0002-7035-6446},
+% %Xiaofei~Luo~\orcidlink{0000-0001-8258-852X},
+% %Qinling~Yang~\orcidlink{0000-0002-7263-8914},
+% %Anke~Xie,
+% %Zibin~Zheng~\orcidlink{0000-0002-7878-4330}\\
+    
+
+% \thanks{Taotao Li, Huawei Huang Xiaofei Luo and Zibin Zheng are with the School of Software Engineering, Sun Yat-Sen University, Zhuhai, 528478, China. Taotao Li is also with the Yunnan Innovation Institute of Beihang University, Yunnan Key Laboratory of Blockchain Application Technology, Kunming, 650233, China. (E-mail:\{litt93; huanghw28; luoxf37; zhzibin\}@mail.sysu.edu.cn)}
+% %
+% \thanks{Qinglin Yang is with Cyberspace Institute of Advanced Technology, Guangzhou University, Guangzhou, 510006, China. (E-mail: yangqinglin@gzhu.edu.cn)} 
+
+
+% %\thanks{Debiao He is with the School of Cyber Science and Engineering, Wuhan University, Wuhan 430072, China. (E-mail: hedebiao@163.com)}
+% %\thanks{Yan Zhang is with the Department of Informatics, University of Oslo, Norway. (Email: yanzhang@ieee.org)}
+% \thanks{Corresponding author: Huawei Huang.}
+
+% }
+
+
+
+
+\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2021}%
+{Shell \MakeLowercase{\textit{et al.}}: A Sample Article Using IEEEtran.cls for IEEE Journals}
+
+
+\maketitle
+
+
+\begin{abstract}
+
+Oracle
+
+\end{abstract}
+
+
+\begin{IEEEkeywords}
+Oracle, Blockchain, Committee, Throughput.
+\end{IEEEkeywords}
+
+
+\section{Introduction}
+\label{sec:intro}
+
+\IEEEPARstart{O}{racle}  
+
+\section{SYSTEM DESIGN}
+
+\subsection{Committee size}
+\label{sec:calculate_committee_size}
+
+Let \(P_a\) denote the maximum ratio of adversarial population in the pre-selected pool. Since committee members are sampled uniformly from this pool, the probability that any given committee position is occupied by a malicious node remains \(P_a\).  A committee of size $N_c$ is considered compromised if the adversarial node controls strictly more than $\lfloor N_c / 2 \rfloor$ of its members, as the \code{FastOracle} consensus protocol requires a strict majority (greater than 1/2) of nodes to be honest. Letting $X$ denote the number of malicious nodes in a committee, the probability $P_f$ that a certain committee is compromised is:
+
+\begin{align}
+P_f 
+&= P\!\left(X > \left\lfloor\frac{1}{2}N_c \right \rfloor\right)\notag \\
+&= \sum_{i= \left\lfloor\frac{1}{2}N_c \right\rfloor+ 1}^{N_c} P(X=i) \notag \\
+&= \sum_{i= \left\lfloor\frac{1}{2}N_c \right\rfloor+ 1}^{N_c} \binom{N_c}{i} P_a^{i} (1-P_a)^{N_c-i}
+\end{align}
+
+In our proposed \code{FastOracle} protocol, security requires that all parallel committees behave honestly. Let $N$ be the number of parallel committees and $N_{\text{pre}}$ the size of the pre-selected pool. The probability $P_{\text{all}}$ that at least one committee is compromised yields the equation:
+
+\begin{equation}
+P_{\text{all}}=1-(1-P_f)^N=1-(1-P_f)^{\lfloor N_{\text{pre}} / N_c \rfloor}
+\end{equation}
+
+Note that the process of selecting the pre-selected committee from the underlying blockchain network fails with probability \(2^{-\beta}\). Let \(P\) denote the end-to-end probability that our \code{FastOracle} is compromised. Then we have the following equation:
+
+\begin{align}
+P &= 1 - \left(1 - \frac{1}{2^{\beta}}\right)(1 - P_{\text{all}}) \notag\\
+  &= 1 - \left(1 - \frac{1}{2^{\beta}}\right)(1 - P_f)^{\lfloor N_{\text{pre}} / N_c \rfloor} \notag\\
+&= 1 - \left(1 - \frac{1}{2^{\beta}}\right) \notag\\
+  &\quad\times\Biggl(1 - \sum_{i= \left\lfloor\frac{1}{2}N_c \right\rfloor+ 1}^{N_c} \binom{N_c}{i} P_a^{i} (1-P_a)^{N_c-i} \Biggr)^{\lfloor N_{\text{pre}} / N_c \rfloor}
+\end{align}
+
+To achieve a predefined end-to-end security level of $\alpha$ bits (i.e., $P < 2^{-\alpha}$), for fixed security parameter $\beta$, adversarial ratio \(P_a\) and pre-selected pool size $N_{\text{pre}}$, we select the smallest committee size $N_c$ such that the inequality \(P < 2^{-\alpha}\) holds. This yields the maximal number of parallel committees, thereby maximizing the \code{FastOracle}  throughput, while ensuring that the probability of \code{FastOracle} being compromised remains below \(2^{-\alpha}\).
+
+\section{SECURITY ANALYSIS}
+
+In this section, we analyze \code{FastOracle} from Section
+? satisfies the security properties defined in Section ?.
+
+\subsection{Threat Model}
+
+\section{IMPLEMENTATION AND EVALUATION}
+
+Next, we implement the proposed \code{FastOracle}, and evaluate its performance in terms of request processing time, request processing throughput, queue size of request pool, and the number of generated certificates. 
+
+\subsection{Experimental setup}
+\textbf{Basic Settings.} We conduct our \code{FastOracle} prototype in
+Golang and evaluated its performance on Proof-of-Stake (PoS) blockchain and Proof-of-Work (PoW) blockchain, respectively. The prototype was deployed on a Windows system with an Intel CPU Core i7-12700H (2.30GHz) and 32GB of DDR5 RAM. 
+
+All experiments were conducted with a oracle network size of \(N=2000\) nodes. Following the committee-size analysis in Section \ref{sec:calculate_committee_size}, \code{FastOracle} organizes nodes into four parallel committees, each comprising 400 nodes. The maximum number of Byzantine nodes was fixed to \(\lfloor \frac{N-1}{3} \rfloor\).
+
+Each experiment consisted of 20,000 oracle requests injected at a sustained rate of 100 requests per second. Requests were processed in batches of 15 to maximize throughput while preserving liveness. To reflect real-world wide-area network conditions, inter-node message latency was drawn from a uniform distribution with a maximum of 2 seconds and an expected value of 1.5 seconds. External data were fetched via HTTPS from the Shenzhen Stock Exchange under a constrained downlink bandwidth of 100 Mb/s.
+
+\textbf{Chain Settings.} We deployed an Ethereum-compatible blockchain using Ganache. To emulate representative PoS and PoW environments, we configured average block intervals of 12 seconds (Ethereum-like PoS) and 600 seconds (Bitcoin-like PoW), respectively.
+
+\textbf{Baseline Solutions.} For comprehensive benchmarking, we also implemented four state-of-the-art oracle schemes in Golang:
+
+\begin{itemize}
+    \item \textbf{SenFeed}: A dynamic decentralized oracle for IoT streaming data. It employs incremental truth discovery for real-time accurate inference and a novel BFT consensus protocol supporting dynamic node membership without system resets.
+    
+    \item \textbf{DeepThought}: A human-in-the-loop oracle that certifies off-chain information via distributed voting and reputation mechanisms, achieving stronger resistance to voter corruption than prior reputation-based systems.
+    
+    \item \textbf{DECENTRUTH}: A truth-discovery oracle addressing deceitful but authentic sources. It combines off-chain truth discovery with asynchronous BFT consensus to deliver highly accurate estimated truths.
+    
+    \item \textbf{DAON}: A fully autonomous oracle network with a dedicated consensus protocol, non-interactive reputation and payment schemes, and continuous security monitoring, ensuring tamper-proof data feeds for smart contracts in complex Byzantine environments.
+\end{itemize}
+
+These baselines enable a fair and reproducible comparison with \code{FastOracle} under identical hardware, network, and workload conditions.
+
+\textbf{Metrics.} We evaluate our \code{FastOracle} using the following four metrics: \textbf{i) Request processing time.} The time required to process a single request, measured from the moment the request is submitted to the oracle network until the requested data is successfully written on-chain. \textbf{ii) Request processing throughput.} The number of requests processed per second by oracle system. \textbf{iii) Queue size of request pool.} The number of pending requests in the oracle request pool. \textbf{iv) Number of generated certificates.} The number of authenticity attestations generated by the oracle nodes per second. 
+
+ 
+
+% Figure for POS Network
+\begin{figure}[!t]
+    \centering
+    % Make sure the path matches your folder structure exactly
+    \includegraphics[width=\linewidth]{figure/figs_pos_basic3/stacked_time_bars.pdf}
+    \caption{Latency breakdown of different oracle protocols in the PoS network environment. The total processing time is dissected into three phases: search, consensus, and on-chain.}
+    \label{fig:pos_latency}
+\end{figure}
+
+% Figure for POW Network
+\begin{figure}[!t]
+    \centering
+    % Make sure the path matches your folder structure exactly
+    \includegraphics[width=\linewidth]{figure/figs_pow_basic3/stacked_time_bars.pdf}
+    \caption{Latency breakdown of different oracle protocols in the PoW network environment. A broken y-axis is utilized to accommodate the significant disparity in total processing time, specifically highlighting the extensive on-chain latency of Deepthought.}
+    \label{fig:pow_latency}
+\end{figure}
+
+  
+
+% 1. Consensus Time Stability for POS (Standard View)
+\begin{figure}[!t]
+    \centering
+    % Check if the path 'figure/figs_pos_basic3/' matches your project structure
+    \includegraphics[width=\linewidth]{figure/figs_pos_basic3/consensusTime_stability.pdf}
+    \caption{Stability analysis of consensus time in the PoS network. The solid line represents the rolling mean (window=50), while the shaded region indicates the standard deviation. The results demonstrate the low-latency consistency of the proposed protocol compared to baselines.}
+    \label{fig:pos_consensus_stability}
+\end{figure}
+
+% 2. Consensus Time Stability for POW (Broken Axis View)
+\begin{figure}[!t]
+    \centering
+    % Check if the path 'figure/figs_pow_basic3/' matches your project structure
+    \includegraphics[width=\linewidth]{figure/figs_pow_basic3/consensusTime_stability.pdf}
+    \caption{Stability analysis of consensus time in the PoW network. A broken y-axis is employed to simultaneously visualize the high-latency Deepthought protocol ($\approx$600s) and the lower-latency group. The narrow variance band of our protocol (Ours) indicates robust performance stability even under high-difficulty PoW conditions.}
+    \label{fig:pow_consensus_stability}
+\end{figure}
+
+
+
+\end{document}
