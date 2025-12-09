@@ -10,7 +10,7 @@ for method in METHOD_LIST:
     folder_name = "results_" + method + "_pow/sec.csv"
     df = pd.read_csv(folder_name)
     df = df.sort_values(by="time").reset_index(drop=True)
-
+    
     df = df.groupby("time")[["q_len", "handled_num"]].sum()
 
     df["q_len"] = df["q_len"].clip(lower=0, upper=MAX_REQUEST_NUM)

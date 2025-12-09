@@ -1,0 +1,11 @@
+{
+  "datasets": [
+    {
+      "path": "data/dataset1.csv",
+      "label": "Method A",
+      "color": "#00BFFF"
+    }
+  ],  
+  "idx_start": 4,
+  "idx_end": 4
+}
