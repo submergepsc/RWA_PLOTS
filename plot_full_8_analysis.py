@@ -146,6 +146,7 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         'figure.figsize': DEFAULT_FIGSIZE,
         'grid.linestyle': '--', 'grid.alpha': 0.6
     })
+    
     print(f"-> [3/8] Queue Decay Rate KDE ({network.upper()})...")
     
     try:
@@ -156,48 +157,97 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         return
 
     decay_datasets = []
+    ours_key = 'committee'
+    ours_dataset = None
     for key, config in PROTOCOLS.items():
         if key in df.columns:
-            # 仅保留队列长度较大时的片段，避免噪声影响衰减速率估计
-            mask = df[key] > 100
-            if mask.sum() < 10: continue
-            q_series = df.loc[mask, key]
-            t_series = df.loc[mask, 'time']
-            # 衰减速率定义为队列长度下降量与时间间隔之比，并过滤异常值
-            decay_rate = -q_series.diff() / t_series.diff()
-            decay_rate = decay_rate.replace([np.inf, -np.inf], np.nan).dropna()
+            # # 仅保留队列长度较大时的片段，避免噪声影响衰减速率估计
+            # mask = df[key] > 100
+            # if mask.sum() < 10: continue
+            # q_series = df.loc[mask, key]
+            # t_series = df.loc[mask, 'time']
+            # # 衰减速率定义为队列长度下降量与时间间隔之比，并过滤异常值
+            # decay_rate = -q_series.diff() / t_series.diff()
+            # decay_rate = decay_rate.replace([np.inf, -np.inf], np.nan).dropna()
+            decay_rate = -df[key].diff().fillna(0)
             decay_rate = decay_rate[decay_rate > 1e-8]
             if decay_rate.empty: continue
-            decay_datasets.append((key, decay_rate, config))
+            if key == ours_key:
+                ours_dataset = (key, decay_rate, config)
+            else:
+                decay_datasets.append((key, decay_rate, config))
 
-    if not decay_datasets: return
+    if ours_dataset is None and not decay_datasets:
+        return
 
-    # 统计各协议衰减速率的最大值，用于判断是否需要断轴展示
-    max_rates = [d.max() for _, d, _ in decay_datasets]
-    global_max = max(max_rates)
-    sorted_max = sorted(max_rates)
-    second_max = sorted_max[-2] if len(sorted_max) > 1 else global_max
-    need_break = (len(sorted_max) > 1) and (global_max > second_max * 3)
+    left_data = decay_datasets
+    fig, (ax_left, ax_right) = plt.subplots(
+        1, 2, figsize=DEFAULT_FIGSIZE,
+        gridspec_kw={'width_ratios': [5, 2], 'wspace': 0.08}
+    )
+
+    if left_data:
+        for key, rates, config in left_data:
+            bw_adjust = 0.2 if config['label'].lower() == 'ours' else 1
+            sns.kdeplot(
+                data=rates,
+                color=config['color'],
+                fill=True,
+                alpha=0.18,
+                bw_adjust=bw_adjust,
+                linewidth=2.3,
+                ax=ax_left,
+                label=config['label'],
+                warn_singular=False
+            )
+    else:
+        ax_left.set_visible(False)
+
+    if ours_dataset is not None:
+        _, ours_rates, ours_config = ours_dataset
+        sns.kdeplot(
+            data=ours_rates,
+            color=ours_config['color'],
+            fill=True,
+            alpha=0.22,
+            bw_adjust=0.45,
+            linewidth=3.0,
+            ax=ax_right,
+            label=ours_config['label'],
+            warn_singular=False
+        )
+    else:
+        ax_right.set_visible(False)
 
     if network == 'pow':
-        fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-        axes = [ax]
-        ax.set_xlim(0, 600)
-        ax.set_ylim(0, 0.05)
-        need_break = False
-    elif need_break:
-        fig, (ax_left, ax_right) = plt.subplots(
-            1, 2, sharey=True, figsize=DEFAULT_FIGSIZE,
-            gridspec_kw={'width_ratios': [3, 1], 'wspace': 0.05}
-        )
-        axes = [ax_left, ax_right]
-        ax_left.set_xlim(0, second_max * 1.5)
-        ax_right.set_xlim(global_max * 0.8, global_max * 1.1)
+        left_xlim = (0, 600)
+        right_xlim = (0, 600)
+    else:
+        def _get_xlim(dataset_list):
+            if not dataset_list:
+                return None
+            max_val = max(r.max() for _, r, _ in dataset_list)
+            return (0, max_val * 1.05 if max_val > 0 else 1)
+
+        left_xlim = _get_xlim(left_data)
+        right_xlim = None
+        if ours_dataset is not None:
+            right_max = ours_dataset[1].max()
+            right_xlim = (0, right_max * 1.1 if right_max > 0 else 1)
+
+    if left_xlim:
+        ax_left.set_xlim(left_xlim)
+    if right_xlim:
+        ax_right.set_xlim(right_xlim)
+
+    if ax_left.get_visible():
         ax_left.spines['right'].set_visible(False)
+    if ax_right.get_visible():
         ax_right.spines['left'].set_visible(False)
         ax_right.yaxis.tick_right()
-        ax_right.tick_params(labelright=False, left=False)
+        ax_right.tick_params(left=False)
 
+    if ax_left.get_visible() and ax_right.get_visible():
         d = 0.015
         kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False)
         ax_left.plot((1 - d, 1 + d), (-d, +d), **kwargs)
@@ -205,38 +255,51 @@ def plot_queue_decay_kde(network: str, out_dir: str):
         kwargs.update(transform=ax_right.transAxes)
         ax_right.plot((-d, +d), (-d, +d), **kwargs)
         ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)
-    else:
-        fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-        axes = [ax]
-        ax.set_xlim(left=0)
 
-    for ax_curr in axes:
-        for key, rates, config in decay_datasets:
-            try:
-                # 使用 KDE 平滑衰减速率分布，帮助比较各协议的尾部行为
-                sns.kdeplot(
-                    data=rates, color=config['color'], fill=True, alpha=0.1, 
-                    linewidth=2.5, ax=ax_curr, label=config['label'], warn_singular=False
-                )
-            except: pass
+    handles_combined = []
+    labels_combined = []
+    for ax in (ax_left, ax_right):
+        if not ax.get_visible():
+            continue
+        handles, labels = ax.get_legend_handles_labels()
+        for handle, label in zip(handles, labels):
+            if label not in labels_combined:
+                handles_combined.append(handle)
+                labels_combined.append(label)
+        existing_legend = ax.get_legend()
+        if existing_legend is not None:
+            existing_legend.remove()
 
-    if network == 'pow':
-        handles, labels = axes[0].get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        axes[0].legend(by_label.values(), by_label.keys(), loc='upper right')
-        axes[0].set_xlabel("Decay Rate (Requests / s)")
-    elif need_break:
-        handles, labels = axes[0].get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        axes[0].legend(by_label.values(), by_label.keys(), loc='upper right')
-        axes[0].set_xlabel("Decay Rate (Requests / s)")
-        axes[1].set_xlabel("")
-    else:
-        axes[0].legend(loc='upper right')
-        axes[0].set_xlabel("Decay Rate (Requests / s)")
+    if handles_combined:
+        fig.legend(
+            handles_combined,
+            labels_combined,
+            ncol=len(labels_combined),
+            loc='upper center',
+            bbox_to_anchor=(0.5, 1.02),
+            fontsize=LEGEND_FONT_SIZE
+        )
 
-    axes[0].set_ylabel("Density")
-    for ax in axes:
+    if ax_left.get_visible():
+        ax_left.set_xlabel("Decay Rate (Requests / s)")
+        ax_left.set_ylabel("Density")
+    ax_right.set_xlabel("Decay Rate (Requests / s)")
+    ax_right.set_ylabel("Density")
+    ax_right.yaxis.set_label_position('right')
+
+    if ours_dataset is not None and ax_right.lines:
+        max_right_density = max(line.get_ydata().max() for line in ax_right.lines if len(line.get_ydata()))
+        if max_right_density > 0:
+            ax_right.set_ylim(0, max_right_density * 1.1)
+
+    if left_data and ax_left.lines:
+        max_left_density = max(line.get_ydata().max() for line in ax_left.lines if len(line.get_ydata()))
+        if max_left_density > 0:
+            ax_left.set_ylim(0, max_left_density * 1.05)
+
+    for ax in (ax_left, ax_right):
+        if not ax.get_visible():
+            continue
         ax.grid(True, axis='y', linestyle='--', alpha=0.5)
         ax.xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
 
