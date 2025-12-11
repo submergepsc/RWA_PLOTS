@@ -14,7 +14,7 @@ def greet(name=None):
     Returns:
         str: A greeting message
     """
-    if name:
+    if name is not None:
         return f"Hello, {name}!"
     return "Hello!"
 
