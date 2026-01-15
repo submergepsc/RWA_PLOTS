@@ -5,8 +5,9 @@ Plot 5: RWA-FastOracle 证书生成时间 CDF (Certificate Generation CDF)
 对应文件夹: figures/05_certificate/
 说明: 
 1. 读取 certif_gen_{network}.csv 文件。
-2. 绘制各协议证书生成时间的累积分布函数 (CDF)。
-3. 针对 Ours (Committee) 协议自动标注 P90 关键点。
+2. 绘制 CDF 及其右侧延伸填充。
+3. 【调整绘图顺序】先画表现较差的协议(背景)，最后画 Ours(前景)，防止阴影遮挡。
+4. 【调整图例顺序】强制图例显示顺序为 Ours 在第一位。
 """
 
 import os
@@ -18,15 +19,11 @@ from typing import Dict
 
 # ================= 全局配置区域 =================
 
-# 数据文件存放的目录
 DATA_DIR = "." 
-
-# 图片输出的总根目录
 FIGURES_ROOT = "figures"
+PLOT_TYPE_NAME = "04_certificate"
 
-# 本脚本对应的子文件夹名称
-PLOT_TYPE_NAME = "05_certificate"
-
+# 定义协议配置 (这是我们希望在 Legend 中显示的顺序: Ours 第一)
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "Ours", "color": "#1f77b4"},
     "daon": {"label": "Daon", "color": "#ff7f0e"},
@@ -35,7 +32,7 @@ PROTOCOLS: Dict[str, Dict[str, str]] = {
     "deepthought": {"label": "Deepthought", "color": "#9467bd"},
 }
 
-# 样式配置 (保持与前序图表一致的论文级样式)
+# 样式配置
 AXIS_LABEL_SIZE = 44
 TICK_LABEL_SIZE = 40
 LEGEND_FONT_SIZE = 38
@@ -45,7 +42,6 @@ SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.1}
 # ================= 辅助函数 =================
 
 def load_data(network: str) -> pd.DataFrame:
-    """加载证书生成数据"""
     filename = f"certif_gen_{network}.csv"
     path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(path):
@@ -55,9 +51,8 @@ def load_data(network: str) -> pd.DataFrame:
 # ================= 绘图核心逻辑 =================
 
 def plot_certificate_cdf(network: str, out_dir: str):
-    print(f"-> Processing {network.upper()} certificate CDF...")
+    print(f"-> Processing {network.upper()} certificate CDF (Optimized Order)...")
     
-    # 局部样式配置
     plt.rcParams.update({
         'font.family': 'sans-serif', 
         'font.sans-serif': ['Arial', 'DejaVu Sans'],
@@ -81,71 +76,90 @@ def plot_certificate_cdf(network: str, out_dir: str):
 
     plt.figure(figsize=DEFAULT_FIGSIZE)
     
-    # 遍历协议配置，确保颜色和顺序统一
-    for key, config in PROTOCOLS.items():
-        # 如果 CSV 中包含该协议列
+    # --- 1. 计算全局最大时间 (用于右边界) ---
+    max_times = []
+    for key in PROTOCOLS.keys():
         if key in df.columns:
-            # 提取数据并清洗
+            data_col = df[key].dropna()
+            if not data_col.empty:
+                max_times.append(data_col.max())
+    
+    if not max_times:
+        print("   No valid data found.")
+        return
+    
+    global_max_time = max(max_times) * 1.02
+    
+    # --- 2. 确定绘图顺序 (Drawing Order) ---
+    # 我们希望最后画 'committee' (Ours)，这样它的线条和阴影在最上层
+    # 因此我们将 PROTOCOLS 列表反转来进行绘图遍历
+    draw_order = list(PROTOCOLS.items())  [::-1]
+
+    for key, config in draw_order:
+        if key in df.columns:
             data_col = df[key].dropna()
             if data_col.empty:
                 continue
             
-            # 数据排序
             sorted_data = np.sort(data_col)
-            # 计算 CDF Y轴 (从 1/n 到 1)
             yvals = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
             
-            # 视觉增强: 突出显示 Ours
+            # 构造延伸数据点
+            x_extended = np.concatenate(([0], sorted_data, [global_max_time]))
+            y_extended = np.concatenate(([0], yvals, [1.0]))
+            
             lw = 4.0 if key == 'committee' else 2.5
-            alpha = 1.0 if key == 'committee' else 0.8
+            alpha_line = 1.0 if key == 'committee' else 0.8
+            # 虽然调整了绘图顺序，保留 zorder 也是双重保险
             zorder = 10 if key == 'committee' else 2
             
-            # 绘制 CDF 曲线
-            plt.plot(sorted_data, yvals, label=config['label'], color=config['color'], 
-                     linewidth=lw, alpha=alpha, zorder=zorder)
+            # 绘制线条
+            plt.plot(x_extended, y_extended, label=config['label'], color=config['color'], 
+                     linewidth=lw, alpha=alpha_line, zorder=zorder)
             
-            # 绘制阴影填充 (仅稍微增加一点层次感)
-            plt.fill_between(sorted_data, yvals, color=config['color'], alpha=0.05, zorder=1)
+            # 绘制填充 (由于 loop 是反向的，大面积的填充会先画，Ours 的小面积填充最后画)
+            plt.fill_between(x_extended, y_extended, color=config['color'], alpha=0.1, zorder=1)
 
-            # --- 特殊处理: 为 Ours 添加 P90 标注 ---
+            # P90 标注
             if key == 'committee':
                 p90_idx = int(len(yvals) * 0.9)
                 if p90_idx < len(yvals):
                     val_p90 = sorted_data[p90_idx]
-                    
-                    # 绘制 P90 辅助虚线
                     plt.axvline(x=val_p90, color='gray', linestyle='--', alpha=0.8, linewidth=3, zorder=5)
                     plt.axhline(y=0.9, color='gray', linestyle='--', alpha=0.8, linewidth=3, zorder=5)
                     
-                    # 添加文本标注框
+                    text_x = val_p90 + (global_max_time * 0.03)
                     plt.text(
-                        val_p90 * 1.1,  # X坐标微调
-                        0.82,           # Y坐标微调
-                        f"P90 ≈ {val_p90:.2f}s", 
-                        fontsize=25, 
-                        color='#333333', 
-                        fontweight='bold',
+                        text_x, 0.82, f"P90 ≈ {val_p90:.2f}s", 
+                        fontsize=25, color='#333333', fontweight='bold',
                         bbox=dict(facecolor='white', alpha=0.9, edgecolor='none', pad=2),
                         zorder=20
                     )
 
-    # 布局与美化
+    # --- 3. 布局与图例重排序 (Legend Reordering) ---
     plt.xlabel("Generation Time (s)")
     plt.ylabel("CDF")
-    # plt.title("Certificate Generation Time CDF") # 论文通常不需要图内标题
-    
-    # 如果数据跨度大，可以考虑 Log 轴 (根据之前代码习惯，这里保持线性，如需 Log 可取消注释)
-    # plt.xscale('log') 
-    
-    plt.legend(loc='lower right')
+    plt.xlim(left=0, right=global_max_time)
+    plt.ylim(bottom=0, top=1.02)
     plt.grid(True, linewidth=1.5)
+
+    # 获取当前图上的所有 handles 和 labels (此时顺序是反的，因为我们反向遍历了)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    
+    # 创建一个字典方便查找
+    by_label = dict(zip(labels, handles))
+    
+    # 按照 PROTOCOLS 定义的原始顺序 (Ours 第一) 重新构建列表
+    ordered_labels = [cfg['label'] for cfg in PROTOCOLS.values() if cfg['label'] in by_label]
+    ordered_handles = [by_label[l] for l in ordered_labels]
+
+    # 显示重排序后的图例
+    plt.legend(ordered_handles, ordered_labels, loc='lower right')
     
     plt.tight_layout()
     
-    # 保存文件: certificate_cdf_pow.pdf / certificate_cdf_pos.pdf
     save_filename = f"certificate_cdf_{network}.pdf"
     save_path = os.path.join(out_dir, save_filename)
-    
     plt.savefig(save_path, format="pdf", **SAVEFIG_KWARGS)
     print(f"   [OK] Saved: {save_path}")
     plt.close()
@@ -153,7 +167,6 @@ def plot_certificate_cdf(network: str, out_dir: str):
 # ================= 运行入口 =================
 
 if __name__ == "__main__":
-    # 目标路径: figures/05_certificate
     target_dir = os.path.join(FIGURES_ROOT, PLOT_TYPE_NAME)
     os.makedirs(target_dir, exist_ok=True)
     

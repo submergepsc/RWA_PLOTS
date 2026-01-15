@@ -515,123 +515,122 @@ def plot_cumulative_workload(network: str, out_dir: str):
 
 # ================= Group 3: 证书生成 (Certificate) =================
 
-# def plot_cert_burst_scatter(network: str, out_dir: str):
-#     """【图7】证书生成脉冲散点图 (Burst Scatter)"""
-#     # 针对证书生成事件配置绘图风格，便于凸显密度和阈值差异
-#     # --- 字体大小修正 ---
-#     plt.rcParams.update({
-#         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
-#         'axes.unicode_minus': False,
-#         'font.size': 14,
-#         'axes.labelsize': AXIS_LABEL_SIZE,
-#         'axes.titlesize': 18,
-#         'xtick.labelsize': TICK_LABEL_SIZE,
-#         'ytick.labelsize': TICK_LABEL_SIZE,
-#         'legend.fontsize': LEGEND_FONT_SIZE,
-#         'figure.figsize': DEFAULT_FIGSIZE,
-#         'grid.linestyle': '--', 'grid.alpha': 0.6
-#     })
-#     print(f"-> [7/8] Certificate Burst Scatter ({network})...")
-    
-#     # 为不同网络单独设置证书生成阈值，保证散点具有可见密度
-#     BATCH_SIZE =2 if network=='pow' else 5
-#     df = pd.read_csv(f"total_handled_num_{network}.csv")
-    
-#     plt.figure(figsize=DEFAULT_FIGSIZE)
-#     protocols = list(PROTOCOLS.keys())
-    
-#     for idx, key in enumerate(protocols):
-#         if key in df.columns:
-#             # 利用累计处理数的增量估计证书数量，筛选出爆发时刻
-#             new_reqs = df[key].diff().fillna(0)
-#             new_certs = (new_reqs // BATCH_SIZE).astype(int)
-#             burst_mask = new_certs > 0
-#             burst_times = df.loc[burst_mask, 'time']
-#             burst_sizes = new_certs[burst_mask]
-            
-#             if len(burst_times) > 0:
-#                 # 使用散点大小编码一次爆发中生成的证书数，纵轴区别协议
-#                 plt.scatter(burst_times, [idx]*len(burst_times), 
-#                             s=burst_sizes*5, 
-#                             color=PROTOCOLS[key]['color'], 
-#                             alpha=0.6, label=PROTOCOLS[key]['label'])
+def plot_cert_burst_scatter(network: str, out_dir: str):
+    """【图7】证书生成脉冲散点图 (Burst Scatter)"""
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': AXIS_LABEL_SIZE,
+        'axes.titlesize': 18,
+        'xtick.labelsize': TICK_LABEL_SIZE,
+        'ytick.labelsize': TICK_LABEL_SIZE,
+        'legend.fontsize': LEGEND_FONT_SIZE,
+        'figure.figsize': DEFAULT_FIGSIZE,
+        'grid.linestyle': '--', 'grid.alpha': 0.6
+    })
+    print(f"-> [7/8] Certificate Burst Scatter ({network})...")
 
-#     plt.yticks(range(len(protocols)), [PROTOCOLS[p]['label'] for p in protocols])
-#     plt.xlabel("Time (s)")
-#     # plt.title("Certificate Generation Bursts (Micro-View)")
-    
-#     if network == 'pow':
-#         plt.xscale('log')
-#         plt.xlabel("Time (s) [Log Scale]")
-        
-#     plt.grid(True, axis='x', which='both', linestyle='--')
-#     plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-#     plt.tight_layout()
-#     plt.savefig(os.path.join(out_dir, "cert_burst_scatter.pdf"), format="pdf", **SAVEFIG_KWARGS)
-#     plt.close()
+    batch_size = 2 if network == 'pow' else 5
+    df = pd.read_csv(f"total_handled_num_{network}.csv")
 
-# def plot_cert_inter_arrival_cdf(network: str, out_dir: str):
-#     """【图8】证书生成间隔 CDF (Inter-Arrival Time)"""
-#     # 调整图形参数，使累积分布在成图时保持高可读性
-#     # --- 字体大小修正 ---
-#     plt.rcParams.update({
-#         'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
-#         'axes.unicode_minus': False,
-#         'font.size': 14,
-#         'axes.labelsize': AXIS_LABEL_SIZE,
-#         'axes.titlesize': 18,
-#         'xtick.labelsize': TICK_LABEL_SIZE,
-#         'ytick.labelsize': TICK_LABEL_SIZE,
-#         'legend.fontsize': LEGEND_FONT_SIZE,
-#         'figure.figsize': DEFAULT_FIGSIZE,
-#         'grid.linestyle': '--', 'grid.alpha': 0.6
-#     })
-#     print(f"-> [8/8] Certificate Inter-Arrival CDF ({network})...")
-    
-#     BATCH_SIZE = 15
-#     df = pd.read_csv(f"total_handled_num_{network}.csv")
-#     plt.figure()
-    
-#     for key, config in PROTOCOLS.items():
-#         if key in df.columns:
-#             # 通过请求增量估计证书批次，并获取每次批次的发生时间
-#             df_cert = df[key] // BATCH_SIZE
-#             new_reqs = df_cert.diff().fillna(0)
-#             burst_mask = new_reqs > 0
-#             burst_times = df.loc[burst_mask, 'time']
-            
+    plt.figure(figsize=DEFAULT_FIGSIZE)
+    protocols = list(PROTOCOLS.keys())
 
-#             # 计算相邻爆发的时间间隔，并绘制成累积分布以比较稳定性
-#             intervals = burst_times.diff().dropna()
-#             data = np.sort(intervals)
-#             cdf = np.arange(1, len(data) + 1) / len(data)
-#             plt.plot(data, cdf, label=config['label'], color=config['color'], linewidth=2.5)
-#             plt.fill_between(data, cdf, color=config['color'], alpha=0.1, zorder=1)
+    for idx, key in enumerate(protocols):
+        if key not in df.columns:
+            continue
+        new_reqs = df[key].diff().fillna(0)
+        new_certs = (new_reqs // batch_size).astype(int)
+        burst_mask = new_certs > 0
+        burst_times = df.loc[burst_mask, 'time']
+        burst_sizes = new_certs[burst_mask]
 
-#             p90_idx = int(len(cdf) * 0.9)
-#             if p90_idx < len(cdf) and key == 'committee':    
-#                 time_p90 = data[p90_idx]
-                
-#                 # 画虚线
-#                 plt.axvline(x=time_p90, color='gray', linestyle='--', alpha=0.8, linewidth=3 , zorder=5)
-#                 plt.axhline(y=0.9, color='gray', linestyle='--', alpha=0.8, linewidth=3 , zorder=5)
-                
-#                 # 添加文本标注
-#                 plt.text(time_p90 * 1.15, 0.82, f"P90 ≈ {time_p90:.1f}s", 
-#                         fontsize=25, color='#333333', fontweight='bold',
-#                         bbox=dict(facecolor='white', alpha=1 , edgecolor='none'))
+        if burst_times.empty:
+            continue
+        plt.scatter(
+            burst_times,
+            [idx] * len(burst_times),
+            s=burst_sizes * 5,
+            color=PROTOCOLS[key]['color'],
+            alpha=0.6,
+            label=PROTOCOLS[key]['label']
+        )
+
+    plt.yticks(range(len(protocols)), [PROTOCOLS[p]['label'] for p in protocols])
+    plt.xlabel("Time (s)")
+    if network == 'pow':
+        plt.xscale('log')
+        plt.xlabel("Time (s) [Log Scale]")
+
+    plt.grid(True, axis='x', which='both', linestyle='--')
+    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "cert_burst_scatter.pdf"), format="pdf", **SAVEFIG_KWARGS)
+    plt.close()
 
 
-#     # plt.title("Certificate Inter-Arrival Time CDF")
-#     plt.xlabel("Inter-Arrival Time (s)")
-#     plt.ylabel("Cumulative Probability")
-#     plt.xscale('log')
-#     plt.legend(loc='upper left')
-#     plt.grid(True, linewidth=2.5)
-#     plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-#     plt.tight_layout()
-#     plt.savefig(os.path.join(out_dir, "cert_inter_arrival_cdf.pdf"), format="pdf", **SAVEFIG_KWARGS)
-#     plt.close()
+def plot_cert_inter_arrival_cdf(network: str, out_dir: str):
+    """【图8】证书生成间隔 CDF (Inter-Arrival Time)"""
+    plt.rcParams.update({
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'axes.unicode_minus': False,
+        'font.size': 14,
+        'axes.labelsize': AXIS_LABEL_SIZE,
+        'axes.titlesize': 18,
+        'xtick.labelsize': TICK_LABEL_SIZE,
+        'ytick.labelsize': TICK_LABEL_SIZE,
+        'legend.fontsize': LEGEND_FONT_SIZE,
+        'figure.figsize': DEFAULT_FIGSIZE,
+        'grid.linestyle': '--', 'grid.alpha': 0.6
+    })
+    print(f"-> [8/8] Certificate Inter-Arrival CDF ({network})...")
+
+    batch_size = 15
+    df = pd.read_csv(f"total_handled_num_{network}.csv")
+    plt.figure(figsize=DEFAULT_FIGSIZE)
+
+    for key, config in PROTOCOLS.items():
+        if key not in df.columns:
+            continue
+        df_cert = df[key] // batch_size
+        new_reqs = df_cert.diff().fillna(0)
+        burst_mask = new_reqs > 0
+        burst_times = df.loc[burst_mask, 'time']
+        intervals = burst_times.diff().dropna()
+        if intervals.empty:
+            continue
+
+        data = np.sort(intervals)
+        cdf = np.arange(1, len(data) + 1) / len(data)
+        plt.plot(data, cdf, label=config['label'], color=config['color'], linewidth=2.5)
+        plt.fill_between(data, cdf, color=config['color'], alpha=0.1, zorder=1)
+
+        if key == 'committee':
+            p90_idx = int(len(cdf) * 0.9)
+            if p90_idx < len(cdf):
+                time_p90 = data[p90_idx]
+                plt.axvline(x=time_p90, color='gray', linestyle='--', alpha=0.8, linewidth=3, zorder=5)
+                plt.axhline(y=0.9, color='gray', linestyle='--', alpha=0.8, linewidth=3, zorder=5)
+                plt.text(
+                    time_p90 * 1.15,
+                    0.82,
+                    f"P90 ≈ {time_p90:.1f}s",
+                    fontsize=25,
+                    color='#333333',
+                    fontweight='bold',
+                    bbox=dict(facecolor='white', alpha=1, edgecolor='none')
+                )
+
+    plt.xlabel("Inter-Arrival Time (s)")
+    plt.ylabel("Cumulative Probability")
+    plt.xscale('log')
+    plt.legend(loc='upper left')
+    plt.grid(True, linewidth=2.5)
+    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "cert_inter_arrival_cdf.pdf"), format="pdf", **SAVEFIG_KWARGS)
+    plt.close()
 
 # ================= 主程序入口 =================
 
@@ -660,7 +659,7 @@ def main():
         
         # Group 3: Certificate
         plot_cert_burst_scatter(network, certificate_dir)
-        plot_cert_inter_arrival_cdf(network, certificate_dir)
+        # plot_cert_inter_arrival_cdf(network, certificate_dir)
         
         print(f"Queue charts -> {queue_dir}")
         print(f"Throughput charts -> {throughput_dir}")
