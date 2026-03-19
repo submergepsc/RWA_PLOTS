@@ -1,171 +1,109 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Plot 3: RWA-FastOracle 队列消减动力学 (Queue Log-Dynamics)
-对应文件夹: figures/03_queue/
-说明: 
-1. PoW 网络: 使用 Log(t - bios) 时间轴，有效压缩漫长的预热期，突出消减趋势。
-2. PoS 网络: 使用线性标准时间轴。
-"""
-
 import os
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
-import pandas as pd
 import numpy as np
-from typing import Dict
 
-# ================= 全局配置区域 =================
-
-# 数据文件存放的目录 (如果是当前目录请用 ".")
-DATA_DIR = "." 
-
-# 图片输出的总根目录
-FIGURES_ROOT = "figures"
-
-# 本脚本对应的子文件夹名称
+# ================= 全局配置 =================
+DATA_DIR = "."
+FIGURES_ROOT = "figure"
 PLOT_TYPE_NAME = "02_queue"
 
-PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "Ours", "color": "#1f77b4"},
-    "daon": {"label": "Daon", "color": "#ff7f0e"},
-    "decentruth": {"label": "Decentruth", "color": "#2ca02c"},
-    "seenfeed": {"label": "Seenfeed", "color": "#d62728"},
-    "deepthought": {"label": "Deepthought", "color": "#9467bd"},
+PROTOCOLS = {
+    "committee":   {"label": "FastOracle", "color": "#1f77b4", "z": 10, "lw": 4,   "marker": "o"},
+    "deepthought": {"label": "Deep.",      "color": "#9467bd", "z": 1,  "lw": 2.5, "marker": "v"},
+    "seenfeed":    {"label": "Seen.",      "color": "#d62728", "z": 1,  "lw": 2.5, "marker": "D"},
+    "decentruth":  {"label": "Decen.",      "color": "#2ca02c", "z": 1,  "lw": 2.5, "marker": "^"},
+    "daon":        {"label": "Daon.",      "color": "#ff7f0e", "z": 1,  "lw": 2.5, "marker": "s"},
 }
 
-# 样式配置
-AXIS_LABEL_SIZE = 44
-TICK_LABEL_SIZE = 40
-LEGEND_FONT_SIZE = 38
+L_SIZE, T_SIZE, LEG_SIZE = 44, 40, 32
 DEFAULT_FIGSIZE = (12, 9)
-SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.1}
+FIGURE_MARGINS = dict(left=0.14, right=0.97, bottom=0.16, top=0.95)
 
-# ================= 辅助函数 =================
+def format_k(x, _):
+    return f"{int(x/1000)}k" if x >= 1000 else f"{x:g}"
 
-def format_tick_to_k(value: float, _position: int) -> str:
-    """Format tick labels >= 1000 using 'k' suffix."""
-    abs_value = abs(value)
-    if abs_value >= 1000:
-        value_k = value / 1000.0
-        if abs(value_k - int(value_k)) < 1e-6:
-            return f"{int(value_k)}k"
-        return f"{value_k:.1f}k"
-    return f"{value:g}"
-
-def get_log_time(time_series: pd.Series, bios: float = 550) -> tuple[np.ndarray, pd.Series]:
-    """计算 log(t - bios) 并返回有效掩码"""
-    valid_mask = time_series > bios
-    # 避免 log(0) 或负数
-    shifted = (time_series[valid_mask] - bios).clip(lower=1e-9)
-    log_t = np.log(shifted)
-    return log_t, valid_mask
-
-def load_data(network: str) -> pd.DataFrame:
-    filename = f"total_q_len_{network}.csv"
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"[Error] Data file not found: {path}")
-    return pd.read_csv(path)
+def get_marker_indices(y_values, num_markers=10):
+    val_y = np.asarray(y_values)
+    active_idx = np.where(val_y > 10)[0]
+    if len(active_idx) == 0:
+        max_idx = len(val_y) - 1
+    else:
+        max_idx = active_idx[-1]
+    
+    # Generate exactly `num_markers` evenly spaced indices up to the point it drains to 0
+    indices = np.linspace(0, max_idx, num_markers, dtype=int)
+    return indices.tolist()
 
 # ================= 绘图核心逻辑 =================
 
-def plot_queue_log_dynamics(network: str, out_dir: str):
-    print(f"-> Processing {network.upper()} queue dynamics...")
+def plot_queue_dynamics(network: str, out_dir: str):
+    print(f"-> Drawing {network.upper()} Queue Dynamics (Cropped)...")
     
-    # 局部样式配置
     plt.rcParams.update({
-        'font.family': 'sans-serif', 
-        'font.sans-serif': ['Arial', 'DejaVu Sans'],
-        'axes.unicode_minus': False,
-        'font.size': 14,
-        'axes.labelsize': AXIS_LABEL_SIZE,
-        'axes.titlesize': 18,
-        'xtick.labelsize': TICK_LABEL_SIZE,
-        'ytick.labelsize': TICK_LABEL_SIZE,
-        'legend.fontsize': LEGEND_FONT_SIZE,
-        'figure.figsize': DEFAULT_FIGSIZE,
-        'grid.linestyle': '--', 
-        'grid.alpha': 0.6
+        'font.family': 'sans-serif', 'font.sans-serif': ['Arial'],
+        'axes.labelsize': L_SIZE, 'xtick.labelsize': T_SIZE, 'ytick.labelsize': T_SIZE,
+        'legend.fontsize': LEG_SIZE, 'grid.linestyle': '--', 'grid.alpha': 0.45
     })
-    
-    try:
-        df = load_data(network)
-    except FileNotFoundError as e:
-        print(e)
-        return
 
-    plt.figure(figsize=DEFAULT_FIGSIZE)
-    
-    # ---------------------------------------------------------
-    # 坐标轴处理逻辑
-    # ---------------------------------------------------------
-    bios_val = 550 if network == 'pow' else 0
-    
-    if network == 'pow':
-        # PoW: 对数时间轴，避免前期等待时间过长导致图形右偏
-        x_vals, mask = get_log_time(df['time'], bios=bios_val)
-        x_label = f"Log Time (t > {bios_val})"
-    else:
-        # PoS: 线性时间轴，通常从 0 开始
-        mask = df['time'] >= bios_val
-        x_vals = df.loc[mask, 'time'] - bios_val
-        x_label = "Time (s)"
-    
-    # ---------------------------------------------------------
-    # 绘图循环
-    # ---------------------------------------------------------
-    for key, config in PROTOCOLS.items():
+    csv_path = os.path.join(DATA_DIR, f"total_q_len_{network}.csv")
+    if not os.path.exists(csv_path): return
+    df = pd.read_csv(csv_path)
+
+    fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+
+    # 1. 绘制所有曲线（包括 Deep.）
+    max_time_others = 0
+    for key, cfg in PROTOCOLS.items():
         if key in df.columns:
-            y_vals = df.loc[mask, key]
+            if network == 'pos':
+                x_plot, y_plot = df['time'], df[key]
+                indices = get_marker_indices(df[key], num_markers=10)
+                is_ours = (key == 'committee')
+                
+                # 画真实线，不带 label（避免带 markevery 的实线在图例中丢失 markers）
+                ax.plot(x_plot.values, y_plot.values, 
+                        color=cfg['color'], linewidth=5 if is_ours else 3.5, zorder=cfg['z'],
+                        marker=cfg['marker'], markersize=24 if is_ours else 18, alpha=0.9, markevery=indices, 
+                        markeredgewidth=1, markeredgecolor='white')
+                
+                # 画专属图例的代理空线，带有 label 和 marker，但无 markevery（保证图例中标记正常显示）
+                ax.plot([], [], label=cfg['label'], color=cfg['color'], linewidth=5 if is_ours else 3.5,
+                        marker=cfg['marker'], markersize=20 if is_ours else 16, alpha=0.9,
+                        markeredgewidth=1, markeredgecolor='white')
+            else:
+                x_plot, y_plot = df['time'], df[key]
+                ax.plot(x_plot, y_plot, label=cfg['label'], color=cfg['color'], linewidth=cfg['lw'], zorder=cfg['z'])
             
-            # 视觉增强: 突出显示 Ours (Committee)
-            zorder = 10 if key == 'committee' else 1
-            lw = 4.0 if key == 'committee' else 2.5
-            alpha = 1.0 if key == 'committee' else 0.8
-            
-            plt.plot(x_vals, y_vals, label=config['label'], color=config['color'],
-                     linewidth=lw, alpha=alpha, zorder=zorder)
+            # 记录除 Deep 以外其他协议的最大结束时间，用于确定裁剪边界
+            if key != 'deepthought':
+                # 假设队列回到  0 或接近 0 的时间点
+                active_data = df[df[key] > 10] # 过滤掉末尾的 0 值
+                if not active_data.empty:
+                    max_time_others = max(max_time_others, active_data['time'].max())
 
-    # ---------------------------------------------------------
-    # 布局与美化
-    # ---------------------------------------------------------
-    plt.xlabel(x_label)
-    plt.ylabel("Queue Length")
+    # 2. 核心裁剪逻辑
+    crop_limit = 20000 if network == 'pos' else 22000
+    ax.set_xlim(0, crop_limit)
+    print(f"   [Crop] {network.upper()} X-axis cropped at {crop_limit}s.")
 
-    # 根据数据特征调整图例位置
-    if network == 'pos':
-        plt.legend(loc='upper right')
-    else:
-        plt.legend(loc='lower left')
-        
-    plt.grid(True)
+    # 3. 装饰
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Queue Length")
+    ax.xaxis.set_major_formatter(FuncFormatter(format_k))
+    ax.grid(True)
     
-    # X轴刻度格式化 (k后缀)
-    plt.gca().xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-    
-    plt.tight_layout(pad=1.4)
-    
-    # 保存文件名: queue_log_dynamics_pow.pdf / queue_log_dynamics_pos.pdf
-    save_filename = f"queue_log_dynamics_{network}.pdf"
-    save_path = os.path.join(out_dir, save_filename)
-    
-    plt.savefig(save_path, format="pdf", **SAVEFIG_KWARGS)
-    print(f"   [OK] Saved: {save_path}")
+    # 使用 plt.legend 重新设置图例位置到右上角
+    plt.legend(loc='upper right', frameon=True, framealpha=0.95)
+    fig.subplots_adjust(**FIGURE_MARGINS)
+
+    save_path = os.path.join(out_dir, f"queue_dynamics_{network}.pdf")
+    fig.savefig(save_path, format="pdf")
     plt.close()
 
-# ================= 运行入口 =================
-
 if __name__ == "__main__":
-    # 目标路径: figures/03_queue
     target_dir = os.path.join(FIGURES_ROOT, PLOT_TYPE_NAME)
     os.makedirs(target_dir, exist_ok=True)
-    
-    print(f"=== Starting Plotting Routine: {PLOT_TYPE_NAME} ===")
-    print(f"Target Directory: {target_dir}")
-    
-    networks = ['pos', 'pow']
-    for net in networks:
-        plot_queue_log_dynamics(net, target_dir)
-        
-    print("=== Done ===")
+    for net in ['pos', 'pow']:
+        plot_queue_dynamics(net, target_dir)

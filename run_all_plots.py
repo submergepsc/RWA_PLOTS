@@ -12,7 +12,7 @@ def main() -> None:
         "plot_2_queue.py",
         "plot_3_throught.py",
         "plot_4_certifycate.py",
-        "plot_5.py",
+        "plot_5_scalability.py",
     ]
 
     for script_name in scripts:
