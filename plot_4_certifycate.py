@@ -37,8 +37,8 @@ AXIS_LABEL_SIZE = 44
 TICK_LABEL_SIZE = 40
 LEGEND_FONT_SIZE = 38
 DEFAULT_FIGSIZE = (12, 9)
-SAVEFIG_KWARGS = {}
-FIGURE_MARGINS = dict(left=0.14, right=0.97, bottom=0.16, top=0.95)
+SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.05}
+FIGURE_MARGINS = dict(left=0.18, right=0.97, bottom=0.18, top=0.95)
 
 # ================= 辅助函数 =================
 
@@ -103,11 +103,11 @@ def plot_certificate_cdf(network: str, out_dir: str):
                 continue
             
             sorted_data = np.sort(data_col)
-            yvals = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
+            yvals = np.arange(1, len(sorted_data) + 1)
             
             # 构造延伸数据点
             x_extended = np.concatenate(([0], sorted_data, [global_max_time]))
-            y_extended = np.concatenate(([0], yvals, [1.0]))
+            y_extended = np.concatenate(([0], yvals, [len(sorted_data)]))
             
             lw = 4.0 if key == 'committee' else 2.5
             alpha_line = 1.0 if key == 'committee' else 0.8
@@ -117,15 +117,16 @@ def plot_certificate_cdf(network: str, out_dir: str):
             # 绘制线条
             ax.plot(x_extended, y_extended, label=config['label'], color=config['color'], 
                     linewidth=lw, alpha=alpha_line, zorder=zorder)
-            
-            # 绘制填充 (由于 loop 是反向的，大面积的填充会先画，Ours 的小面积填充最后画)
-            ax.fill_between(x_extended, y_extended, color=config['color'], alpha=0.1, zorder=1)
 
     # --- 3. 布局与图例重排序 (Legend Reordering) ---
-    ax.set_xlabel("Generation Time (s)")
-    ax.set_ylabel("CDF")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Number of Certificates")
     ax.set_xlim(left=0, right=global_max_time)
-    ax.set_ylim(bottom=0, top=1.02)
+    
+    # 动态 y_lim based on max certificates generated across all protocols
+    max_certs = max([len(df[key].dropna()) for key in PROTOCOLS.keys() if key in df.columns]) if not df.empty else 1
+    ax.set_ylim(bottom=0, top=max_certs * 1.05)
+    
     ax.grid(True, linewidth=1.5)
 
     # 获取当前图上的所有 handles 和 labels (此时顺序是反的，因为我们反向遍历了)
@@ -143,7 +144,7 @@ def plot_certificate_cdf(network: str, out_dir: str):
     
     fig.subplots_adjust(**FIGURE_MARGINS)
     
-    save_filename = f"certificate_cdf_{network}.pdf"
+    save_filename = f"certificate_cdf_{network}.pdf" # Keep filename constant to avoid breaking tex references
     save_path = os.path.join(out_dir, save_filename)
     fig.savefig(save_path, format="pdf", **SAVEFIG_KWARGS)
     print(f"   [OK] Saved: {save_path}")

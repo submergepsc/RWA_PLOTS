@@ -1,0 +1,365 @@
+pages: 21
+
+--- Page 1 ---
+RWA-FastOracle
+Introduction
+RWAMarketResearch：RWAMarketResearch
+ParallelCommittee
+基本思路
+•选取节点，划分为NUM个委员会，每个委员会⾄少X个成员
+◦对于PoS⽹络，选取从当前区块开始，往前连续2016个区块的miner作为预选委员会成员，从
+中划分为NUM个委员会
+◦对于PoW⽹络，选取从当前区块开始，往前39个区块的miner作为第⼀个委员会，往前第40
+到79作为第⼆个委员会，......，以此类推
+•多个委员会并⾏处理请求，可以根据请求编号划分请求，让编号为i的委员会处理编
+号%NUM==i的请求
+•委员会节点爬取数据，获取请求的结果，在委员会内将⾃⼰获取到的请求结果和证明给⼴播委员会
+内其他节点
+•编号为0的节点在收到半数以上证明后⽣成聚合签名，将数据在T时间内上链；如果1号节点监听
+发现数据没在T时间内上链，则⾃⼰⽣成聚合签名上链;......;如果编号为i+1的节点发现数据没
+在i*T时间内上链，则⾃⼰⽣成聚合签名上链。
+•节点选取⽅案：注意到不⼀定链上所有节点都愿意加⼊委员会，假设⼀共需要挑选出M个 委员会节
+点，则需要连续2*M区块的矿⼯在lamda个区块内调⽤⼀个confirm函数成为委员会节点，不调⽤
+则默认相当；如果最终数量⼤于M则选取前M个区块的，如果最终数量T⼩于M，则再往前选取2 *
+（M-T）区块的矿⼯......以此类推
+•优势：
+a.传统的节点发现机制需要对加⼊或退出的节点达成共识（如SenFEED），但是我们的⽅案中
+的每个节点可以直接从链上智能合约查询得到真实的信息，⽽链上智能合约本⾝就确保了真实
+性和唯⼀性，因此不需要共识。
+b.选举的节点都是从来⾃于当前链的矿⼯，安全性由底层链保障
+
+--- Page 2 ---
+相关计算
+上链时间数学期望计算
+令X表⽰最终是编号为X的节点将数据上链，表⽰委员会恶意节点数量，则： P  a
+  P ( X = i ) = ( 1 − P  ) P  a ai
+（第0号节点到第i-1号共i个节点都是恶意的，第i号节点是诚实的）
+令T表⽰从达成共识到上链所需要的时间，表⽰委员会的节点数量，Ti表⽰从达成共识到Ti节点
+上链所需要的时间，Ti节点上链的时间区间为(i*T,i*T+1)，则E(Ti)为(i+σ)T，其中σ属于(0,1)
+之间，表⽰节点从发起交易到交易最终在链上确认所需要的平均时间，则：N  c
+T  σ
+ E ( T ) =  P ( X =
+i = 0∑N  − 1 c
+i ) E ( T  ) i
+=  ( 1 −
+i = 0∑N  − 1 c
+P  ) P  ( i T + a aiT  ) σ
+=i f   P  ∈ ( 0 , 1 ) , T  = σ T a σT ( 1 − P  ) ( ( P  ( N  + a aN  cc σ − 1 ) − σ −  ) / P  +P  − 1 aP  − P  aN  ca
+a 1 )
+委员会成员数量
+思路：表⽰每个委员会内部每个节点是恶意的概率。先计算对于每个节点数为的委员会，它
+有⼤于50%的节点是恶意的概率，称此时的委员会称为“坏的”。随后计算⾄少⼀个委员会是“坏
+的”的概率P  a N  c
+在PoS⽹络中，如果预选委员会成员中恶意节点⽐例为，那么每个被选为委员会的节点是恶意的
+概率为。令每个委员会被攻击成功的概率为，对于委员会来说，因为是投票共识，只要系统中
+有超过1/2的恶意节点就会失败，令表⽰委员会中恶意节点数量，则：P  a
+P  a P  f
+X
+  P  = f P ( X > ⌊  ⌋ )2N  − 1 c
+令表⽰委员会中节点数量，则有： N  c
+ P  = f P ( X > ⌊  ⌋ ) =2N  − 1 cP ( X =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+i ) =   P  ( 1 −
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)aiP ) aN  − i c
+我们为了实现并⾏的⽅案，需要保证每个委员会都是安全的，令委员会⾄少有⼀个被攻击成功的概率
+为，委员会数量为，则有： P  a l l N
+  P  = a l l 1 − ( 1 − P  ) fN
+令预选委员会总节点数为，则可以根据给定计算出委员会数量： N  p r e N  c
+N
+
+--- Page 3 ---
+  N = ⌊  ⌋N  cN  p r e
+则：  P  = a 1 − ( 1 − P  ) f⌊ N  / N  ⌋ p r e c
+代码块
+import math
+import pandas as pd
+def calculate_pf(num: int, p_a: float) -> float:
+    final_res = 0.0
+    start_index = (num - 1) // 2 + 1
+    for i in range(start_index, num+1):
+        final_res += math.comb(num, i) * math.pow(p_a, i) * math.pow(1 - p_a, 
+num - i)
+    return final_res
+def calculate_pall(num: int, p_a: float, num_pre: int) -> float:
+    committee_num = num_pre // num
+    p_f = calculate_pf(num, p_a)
+    return 1 - math.pow(1 - p_f, committee_num)
+if __name__ == "__main__":
+    res_dict = {
+        "num": [],
+        "p": [],
+        "p_f": []
+    }
+    p_a = 1 / 3
+    num_pre = 1000
+    for num in range(10, 500, 10):
+        p_f = calculate_pf(num, p_a)
+        committee_num = num_pre // num
+        p = 1 - math.pow(1 - p_f, committee_num)
+        res_dict["num"].append(num)
+        res_dict["p"].append(p)
+        res_dict["p_f"].append(p_f)
+    res_dict = pd.DataFrame(res_dict)
+    res_dict.to_csv("calculate_res.csv", index= False)    
+在 时（num指每个委员会的数量，p指系统作恶的概率，p_f指委员会作恶的概率）：  P  = a 1/3
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+
+--- Page 4 ---
+calculate_res.csv
+
+
+--- Page 5 ---
+这⾥我和：ATwo-LayerBlockchainShardingProtocolLeveragingSafetyandLivenessfor
+EnhancedPerformanc这篇⽂章的计算结果对⽐了⼀下，是吻合的。
+注意到，从PoS⽹络中选出预选委员会有的可能性失效，令我们⽅案最终被攻击成功的概率为
+，则有：1/ 2β  1
+P
+ P = 1 − ( 1 −  ) ( 1 −2β  11P  ) a l l
+= 1 − ( 1 −  ) ( 1 −2β  11P  ) f⌊ N  / N  ⌋ p r e c
+= 1 − ( 1 −  ) ( 1 −2β  11
+  P  ( 1 −
+i = ⌊  ⌋ + 12N − 1 c∑N  c
+(iN  c)aiP  ) ) aN  − i c ⌊ N  / N  ⌋ p r e c
+给定安全性阈值，我们需要保证 ，因此最终委员会数量为满⾜ 的最⼩的 β  2 P <  2β  21P <  2β  21N  c
+做实验时发现的⼀个⼩结论
+⼀个很简单的推论，假设 ，那么 ，假设 ，那么当 时
+ ，证明：P  ≥ a 1/2 P  ≥ f 1/2 P  < a 1/2 N  → c + ∞
+P  → f 0
+引理1：
+   =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)   {2N  − 1 c
+( 2 +  ) /2N  c (N  / 2 cN  c)i f   N  ≡ 1 m od 2 c
+i f   N  ≡ 0 m od 2 c
+证明：
+假设为偶数，令 ，那么有：  N  C N  = c 2 k  =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)   
+i = k∑2 k
+(iN  c)
+
+--- Page 6 ---
+注意到：   =
+i = k∑2 k
+(i2 k)   
+i = k∑2 k
+(2 k − i2 k) =j = 2 k − i
+  =
+j = k∑0
+(j2 k)   
+j = 0∑k
+(j2 k)
+因此：
+   =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)   =
+i = k∑2 k
+(i2 k)  (   +21
+i = k∑2 k
+(i2 k)   ) =
+i = 0∑k
+(i2 k)  (   +21
+i = 0∑2 k
+(i2 k)  ) (k2 k)
+=  ( 2 +21N  c
+ ) (N  /2 cN  c)
+假设为奇数，令 那么有：  N  C N  = c 2 k + 1 =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+ P ( X =
+i = k + 1∑2 k
+i )
+注意到：   =
+i = k∑2 k + 1
+(i2 k + 1)   
+i = k∑2 k + 1
+(2 k + 1 − i2 k + 1) =j = 2 k + 1 − i
+  =
+j = k + 1∑0
+(j2 k + 1)   
+j = 0∑k + 1
+(j2 k + 1)
+因此：
+   =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)   =
+i = k∑2 k + 1
+(i2 k + 1)  (   +21
+i = k∑2 k + 1
+(i2 k + 1)   ) =
+i = 0∑k
+(i2 k + 1)
+   =21
+i = 0∑2 k + 1
+(i2 k + 1) 2N  − 1 c
+引理2：
+对于任意的，若 ，则  N  c P  < a P  a′P  < f P  f′
+证明：
+
+--- Page 7 ---
+（这个我不太会证，这个从直觉上是成⽴的，但是我应该有论⽂会有证明）
+最终结论证明：
+ P  = f  P  ( 1 −
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)aiP  ) aN  − i c
+当 时： P  ≥ a 1/2
+ P  = f  P  ( 1 −
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)aiP  ) ≥ aN  − i c
+   ( 1 −
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)21i
+ ) =21N  − i c
+   ≥2N  c1
+i = ⌊ ⌋ + 12N  − 1 c∑N  c
+(iN  c)  21
+当 时， ，则： P  < a 1/2 P  < a 1 − P  a
+ P  = f  P  ( 1 −
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)aiP  ) < aN  − i c
+  P  =
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)aN  cP    aN  c
+i = ⌊  ⌋ + 12N  − 1 c∑N  c
+(iN  c)
+≤ P  ( 2 +aN  c N  c
+ ) /2 = (N  /2 cN  c)  ( 2 P  ) +21
+aN  c
+  P  <21(N  /2 cN  c)aN  c
+ ( 2 P  ) +21
+aN  c
+   21(N  /2 cN  c)2N  c1
+因为 ，因此当 时  2 P  < a 1 N  → c + ∞
+ ( 2 P  ) →21
+aN  c0
+( )
+
+--- Page 8 ---
+同时， 是⼆项分布 在均值处的概率质量。根据局部极限定理（localcentral
+limittheorem），当 时，   (N  /2 cN  c)2N  c1B ( n ,  )21
+N  → c + ∞  → (N  /2 cN  c)2N  c10
+或者可以⽤Stirling公式：  n ! ∼  (  ) ( n → 2 π nenn∞ )
+因此  = (N  /2 cN  c)  ∼( n /2 ) !2n !
+ =
+2 π n /2 (  )en / 22 ⋅ n / 2 (  ) 2 π nen n
+ =
+π n (  )en / 2n (  ) 2 π nen n
+ ( n →
+ π n ⋅ 2 2n
+∞ )
+因此，当 时，  n → ∞
+  → (N  /2 cN  c)2N  c1→π N  c ⋅ 2 2n
+0
+实验结果
+PoS
+•⼀次共识相关时间：爬取数据的时间，共识的时间，上链的时间
+X轴请求编号，Y轴：这次请求对应的时间
+onChainTime.pdf
+
+
+--- Page 9 ---
+searchTime.pdf
+
+
+--- Page 10 ---
+consensusTime.pdf
+•吞吐量：每秒处理多少请求
+每100秒统计⼀次这段时间内处理的请求总数，X轴：时间，Y轴：请求处理速度
+
+--- Page 11 ---
+throughput.pdf
+•请求队列⻓度，每秒统计⼀次
+每5秒统计⼀次这段时间内的队列⻓度，X轴：时间，Y轴：队列⻓度
+
+--- Page 12 ---
+queue.pdf
+
+
+--- Page 13 ---
+queue.pdf
+•证书⽣成速度，每秒会⽣成多少证书（批处理时的多个请求可以⽤⼀个聚合签名）
+每100秒统计⼀次这段时间内⽣成的证书数量，X轴：时间，Y轴：证书⽣成速度
+
+--- Page 14 ---
+certif_num.pdf
+Pow
+•⼀次共识相关时间：爬取数据的时间，共识的时间，上链的时间
+X轴请求编号，Y轴：这次请求对应的时间
+
+--- Page 15 ---
+onChainTime.pdf
+
+
+--- Page 16 ---
+searchTime.pdf
+
+
+--- Page 17 ---
+consensusTime.pdf
+•吞吐量
+每5秒统计⼀次这段时间内⽣成的证书数量，X轴：对数偏移时间，Y轴：证书⽣成速度
+
+--- Page 18 ---
+throughput.pdf
+•证书⽣成速度，每秒会⽣成多少证书（批处理时的多个请求可以⽤⼀个聚合签名）
+每5秒统计⼀次这段时间内⽣成的证书数量，X轴：对数偏移时间，Y轴：证书⽣成速度 
+
+--- Page 19 ---
+certif_num.pdf
+•请求队列⻓度，每秒统计⼀次
+每5秒统计⼀次这段时间内的队列⻓度，X轴：对数时间，Y轴：队列⻓度
+
+--- Page 20 ---
+queue.pdf
+实验图
+要求
+•图种类要丰富：折线图、散点图、PDF图、柱状图、etc.
+•图内部内容要充实饱满，如果图中有⼤量空⽩，可以加上⽂字说明、箭头、多⼦图 etc.
+•注意⽐例缩放，不要让某个图形在视觉上看起来很⼩，⽤断轴图或者取log缩放来实现 
+•图⽚⻓宽⽐例要⼀致plt.figure(figsize= (8, 6))，注意不同的xy轴字体会对图⽚框区
+域有影响，可以使⽤plt.tight_layout(rect= [])
+•字体、线条必须要⼤，建议18+，字体要求：放到overleaf中时和正⽂字体是⼀样⼤的 
+•最终图都要是pdf格式
+可以参考： UFSC扩展论⽂版_同义改写_实验数据输出（以及实验图⽚输出）的section6.
+PoS
+
+--- Page 21 ---
+PoW
+RWAcontractparadigm
+需要满⾜的条件有：
+•liveness
+•consistency
+•correctness

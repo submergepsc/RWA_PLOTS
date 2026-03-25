@@ -18,7 +18,7 @@ from typing import Dict
 # ================= 全局配置区域 =================
 
 DATA_DIR = "." 
-FIGURES_ROOT = "figure"
+FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "03_throughput"
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
@@ -203,7 +203,7 @@ def plot_throughput_stability(network: str, out_dir: str):
         fig.text(
             shared_box_pos[0],
             shared_box_pos[1],
-            ANNOTATIO   N_TEXT,
+            ANNOTATION_TEXT,
             transform=fig.transFigure,
             fontsize=ANNOTATION_FONT_SIZE,
             color=ANNOTATION_TEXT_COLOR,

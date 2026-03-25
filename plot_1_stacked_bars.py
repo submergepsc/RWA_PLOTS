@@ -134,7 +134,7 @@ def plot_stacked_time_bars(network: str, out_dir: str) -> None:
         if network == 'pow':
             fig, (ax_left, ax_right) = plt.subplots(
                 1, 2, sharey=False,
-                gridspec_kw={"width_ratios": [3, 1], "wspace": 0.05},
+                gridspec_kw={"width_ratios": [3, 1], "wspace": 0.03},
             )
             draw_bars_on_ax(ax_left, show_labels=True)
             draw_bars_on_ax(ax_right, show_labels=False)
@@ -149,10 +149,11 @@ def plot_stacked_time_bars(network: str, out_dir: str) -> None:
 
 
             # 断轴标记
-            d = 0.015
+            d = 0.024
             kwargs = dict(transform=ax_left.transAxes, color="k", clip_on=False)
-            ax_left.plot((1 - d, 1 + d), (-d, +d), **kwargs)
-            ax_left.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+            ax_left.plot((1-d/3,1+d/3), (-d, +d), **kwargs)
+            ax_left.plot((1 - d/3, 1 + d/3), (1 - d, 1 + d), **kwargs)
+            # d1=3*d
             kwargs.update(transform=ax_right.transAxes)
             ax_right.plot((-d, +d), (-d, +d), **kwargs)
             ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)
@@ -203,14 +204,14 @@ def plot_stacked_time_bars(network: str, out_dir: str) -> None:
         # 轴标签
 
         if network == 'pow':
-            fig.text(0., 0.5, "Protocol", va="center", rotation="vertical", fontsize=local_style["axes.labelsize"])
-            fig.text(0.5, 0.02, "Time (s)", ha="center", fontsize=local_style["axes.labelsize"])
-            plt.tight_layout(rect=[0.01, 0.2, 0.98, 0.92])
+            fig.text(0.04, 0.5, "Protocol", va="center", rotation="vertical", fontsize=local_style["axes.labelsize"])
+            fig.text(0.5, 0.04, "Time (s)", ha="center", fontsize=local_style["axes.labelsize"])
+            plt.subplots_adjust(left=0.20, right=0.96, bottom=0.18, top=0.92, wspace=0.03)
 
         else:
-            fig.text(0.06, 0.5, "Protocol", va="center", rotation="vertical", fontsize=local_style["axes.labelsize"])
-            fig.text(0.5, 0.10, "Time (s)", ha="center", fontsize=local_style["axes.labelsize"])
-            plt.tight_layout(rect=[0.01, 0.1, 0.98, 0.92])
+            fig.text(0.04, 0.5, "Protocol", va="center", rotation="vertical", fontsize=local_style["axes.labelsize"])
+            fig.text(0.5, 0.04, "Time (s)", ha="center", fontsize=local_style["axes.labelsize"])
+            plt.subplots_adjust(left=0.20, right=0.96, bottom=0.18, top=0.92)
 
         save_filename = f"stacked_breakdown_{network}.pdf"
         save_path = os.path.join(out_dir, save_filename)

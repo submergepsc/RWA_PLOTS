@@ -6,7 +6,7 @@ import numpy as np
 
 # ================= 全局配置 =================
 DATA_DIR = "."
-FIGURES_ROOT = "figure"
+FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "02_queue"
 
 PROTOCOLS = {
@@ -107,3 +107,12 @@ if __name__ == "__main__":
     os.makedirs(target_dir, exist_ok=True)
     for net in ['pos', 'pow']:
         plot_queue_dynamics(net, target_dir)
+
+
+
+"""
+
+k_b - k_a &> \frac{1}{\lambda L} \ln \left( \frac{6}{1 - \exp(-\lambda L)} \right)\nonumber &=\frac{1}{\lambda L}(\ln6 \lambda L - \ln(\exp(\lambda L) - 1))\nonumber & = \ln 6 - \frac{\ln(\exp(\lambda L) - 1)}{\lambda L}
+
+
+

@@ -1,0 +1,719 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{mathrsfs}
+\usepackage{amsfonts}
+
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{cite}
+\usepackage{textcomp}
+\usepackage{bbding}
+
+\usepackage{etoolbox}
+
+\usepackage{lipsum} 
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage[most]{tcolorbox}
+\usepackage[caption=false]{subfig}
+
+\tcbset{
+  mybox/.style={
+    breakable,           % 允许跨页
+    enhanced jigsaw,     % 增强拼图模式，允许更复杂的内容布局
+    colframe=black,      % 边框颜色
+    colback=white,       % 背景颜色
+    boxrule=0.2mm,       % 边框厚度
+    width=\columnwidth,    % 框的宽度
+    sharp corners,       % 直角边框
+    before skip=10pt,    % 框上方的间距
+    after skip=10pt,     % 框下方的间距
+    colbacktitle=white,  % 标题背景颜色
+    title=\quad,               %页和跨栏的框,
+    attach title to upper, % 标题附加到框的上部
+    fonttitle=\bfseries, % 标题字体样式
+    center title,        % 标题居中
+    boxsep=5pt,          % 框内内容与边框的距离
+    left=4pt,            % 左边距
+    right=4pt,           % 右边距
+    top=-9pt,            % 上边距
+    bottom=-1pt          % 上边距
+  }
+}
+
+\usepackage{graphicx}
+\makeatletter
+\newcommand*\bigcdot{\mathpalette\bigcdot@{.5}}
+\newcommand*\bigcdot@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
+\makeatother
+%----------------------------------------
+
+\usepackage{url}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[referable]{threeparttablex}
+
+
+\usepackage{multirow} 
+\usepackage{pifont}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+\usepackage{balance}
+\usepackage{orcidlink}
+\usepackage{pifont}
+\newcommand{\circled}[1]{{\normalsize{\textcircled{\scriptsize{#1}}}\normalsize\;}}
+
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+
+%% ---- Comments Format, added by Huawei
+\newcommand{\hhw}[1]{\textcolor{black}{{#1}}} %COMMENTS BY Huawei magenta
+
+\newcommand{\ltt}[1]{\textcolor{black}{{#1}}} %COMMENTS BY LI Taotao brown
+
+%% ---- Comments Format:~
+\newcommand{\revised}[1]{\textcolor{magenta}{{#1}}}
+\newcommand{\todo}[1]{\textcolor{red}{{#1}}} 
+
+
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+
+\author{
+  AAA,
+  BBB
+}
+
+
+\begin{document}
+\title{\code{FastOracle}: Improving Oracle Throughput and Latency via a Reduced-Size Secure Committee}
+
+\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2021}%
+{Shell \MakeLowercase{\textit{et al.}}: A Sample Article Using IEEEtran.cls for IEEE Journals}
+
+
+\maketitle
+
+
+\begin{abstract}
+
+Oracle
+
+\end{abstract}
+
+
+\begin{IEEEkeywords}
+Oracle, Blockchain, Committee, Throughput.
+\end{IEEEkeywords}
+
+
+\section{Introduction}
+\label{sec:intro}
+
+\IEEEPARstart{O}{racle}  
+
+\section{RELATED WORK}
+
+\section{SYSTEM DESIGN}
+\label{sec:system_design}
+
+\subsection{System Overview}
+This section presents the overall architecture of the proposed \code{FastOracle} oracle protocol.
+
+To guarantee that only highly active and reliable participants are involved in data aggregation and on-chain reporting, the protocol first computes an activity score for each miner (or validator in PoS chain) in the underlying blockchain, as formally defined in Section~\ref{sec:miner-active-score}. A dynamic threshold $\tau$ is then derived to exclude potentially inactive nodes. The set of miners whose activity scores exceed $\tau$ forms the nominating committee. This committee is then partitioned into $C$ disjoint subcommittees with size $\mathcal{S}_1, \dots, \mathcal{S}_{C}$, where each subcommittee is responsible for handling a dedicated portion of oracle requests. (introduced in Section~\ref{sec:committee-selection})
+
+The system enables concurrent request processing across all $C$ subcommittees, substantially increasing throughput compared to sequential oracle designs. When a user submits an oracle request $r$ by calling the corresponding on-chain smart contract, the request is appended to the tail of request queue maintained by the contract. Each subcommittee continuously monitors this queue and dequeues the next pending request $r$ satisfying $r \bmod S_i = i$, strictly preserving FIFO order.
+
+Upon dequeuing a request, the nodes of subcommittee independently retrieve the required off-chain data from their respective external sources. Each node locally computes its candidate value $v$ and broadcasts the pair $\langle v, \sigma\rangle$ (where $\sigma$ is its signature) to all other members of the subcommittee. Whenever a node collects valid signatures from more than half of the subcommittee members ($\ge\left\lceil \frac{S_i}{2} \right\rceil$), it then produces a compact aggregated signature $\sigma^*$ via BLS multi-signature aggregation\cite{BLS2004}.
+
+The subcommittee then employs a Verifiable Random Function\cite{VRF1999Micali} to generate a publicly verifiable, random permutation $\pi = (\pi_1, \pi_2, \dots)$ of its members. The first candidate $\pi_1$ is granted an initial reporting window of duration $T$. If a valid result $\langle v, \sigma^* \rangle$ is successfully submitted on-chain within this interval, the request is considered finalized. If no valid transaction is observed within time window $T$, responsibility automatically passes to the second candidate $\pi_2$, who may submit during the subsequent window $[T, 2T)$. This cascading fallback continues sequentially: candidate $\pi_k$ is permitted to report if and only if no earlier candidate has successfully done so by time $(k-1)T$. The smart contract then verifies the correctness of the aggregated signature $  \sigma^*$ using the subcommittee members' public keys stored on-chain. If the signature is valid, the contract accepts this submission as the result. For all subsequent submissions, the contract directly reverts the transaction without performing further verification, minimizing gas consumption.
+
+\subsection{Committee Selection}
+In this section, we will introduce the procedure for selecting the required committee given a target total number of committee members $N_{\text{target}}$.
+\label{sec:committee-selection}
+\begin{algorithm}[ht]
+\caption{Nominating committee Construction Algorithm}
+\label{alg:pre-committee-selection}
+\begin{algorithmic}[1]
+\Require $\mathrm{H}$ \Comment{Current block height.}
+
+\State $I_{\min} \gets \mathrm{H} - \xi + 1 $
+\State$I_{\max} \gets \mathrm{H}$ \Comment{Selection window.}
+\State $d \gets N_{\text{target}}$ 
+\State $\mathcal{P} \gets \emptyset$ 
+    \Comment{Nominating committee.}
+
+\Function{isEligibleMiner}{$p$}
+    \If{$p$ called \texttt{becomeNode()} in 10 blocks}
+        \State \Return \textbf{true}
+    \EndIf
+    \State \Return \textbf{false}
+\EndFunction
+
+\Function{getNominatingCommittee}{$N_{\text{target}}$}
+\While{$d \neq 0$}
+    \For{$p$ who mined a block in $[I_{\min}, \; I_{\max}]$}
+        \If{\Call{isEligibleMiner}{$p$}}
+            \State $\mathcal{P} \gets \mathcal{P} \cup \{p\}$ 
+        \EndIf
+    \EndFor
+    \State $d \gets N_{\text{target}} - |\mathcal{P}|$ 
+    
+    \State $I_{\max} \gets I_{\min} - 1$
+    \State $ I_{\min} \gets I_{\max} -d$
+        \Comment{Shift window backward.}
+\EndWhile
+
+\State \Return $\mathcal{P}$ 
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+To ensure that committee members are actively engaged participants, we introduce a voluntary selection algorithm. The nominating committee $\mathcal{P}$ is constructed iteratively according to Algorithm~\ref{alg:pre-committee-selection}.
+
+The algorithm begins by initializing the selection window $[I_{\min},\;  I_{\max}]$ to the most recent $\xi$ blocks, we will calculate it in Section \ref{sec:adaptive-selection-parameters}. It then iteratively processes this window to select eligible miners. In each iteration, the protocol examines all miners who minted a block within $[I_{\min},\;  I_{\max}]$. A miner $p$ is added to the committee $\mathcal{P}$ if $p$ has called the function \texttt{becomeNode()} within 10 blocks. This mechanism ensures that only actively voluntary miners are included.
+
+After processing the current window, the algorithm calculates the remaining deficit $d = N_{\text{target}} - |\mathcal{P}|$. If $d = 0$, the size of nominating committee has reached the target and the algorithm terminates. Otherwise, the algorithm sets a new selection window of length $d$ that immediately precedes the previous one. Specifically, if the previous window spanned blocks $[I_{\min}, I_{\max}]$, then the new window is defined as $[I_{\min}-1 - d, I_{\min}-1]$. This process repeats until $N_{\text{target}}$ committee members are selected.
+
+After constructing the nominating committee, we partition the committee into $ C $ subcommittees, with sizes $ S_1, \dots, S_C $. The value of $ C $ and the specific values of $ S_i $ are calculated in Section \ref{sec:calculate-committee-size}.
+
+\subsection{Miner Activity Score}
+\label{sec:miner-active-score}
+To estimate an appropriate value for $\xi$, we will first measure the liveness of all miners. This section presents a methodology for computing a miner activity score based exclusively on on-chain data. The proposed score aims to provide a comprehensive characterization of miners’ engagement within the blockchain ecosystem. 
+
+To achieve this, we will partition the blockchain into a sequence of non-overlapping time windows. For each time window, we compute miner's Block Production Score, Non-Contract Transaction Score, and Smart-Contract Interaction Score.
+
+The three per-window scores are then subjected to a non-linear transformation that compresses extreme values. Finally, we apply an exponential time-decay weighting across the sequence of windows to produce the ultimate miner activity score. This formulation ensures that the final score reflects both the intensity and the recency of a miner’s observable on-chain behavior.
+
+\subsubsection{Time Window Partitioning}
+To analyze miner behavior over different time period and to mitigate the impact of short-term fluctuations, we partition the entire blockchain history into consecutive, non-overlapping time windows of fixed length $L$ blocks, measured backward from the current chain head. The most recent window ($I_1$) always contains the latest $\min(L, H)$ blocks, while earlier windows cover progressively older history.
+
+Formally, let $H \in \mathbb{N}_0$ denote the height of the current chain head and $L \in \mathbb{N}^+$ the chosen window length in number of blocks. We partition the block heights $\{0, 1, \dots, H\}$ into windows $I_k$ for $k = 1, 2, \dots, K$, where $K = \lceil (H+1)/L \rceil$.
+
+\begin{definition}[Backward Time Windows]
+\label{def:window-partition}
+The $k$-th window is defined as the set of block heights
+\begin{equation}
+I_k := \bigl\{ j \mid \max(H - kL + 1, 0) \le j \le H - (k-1)L \bigr\}
+\end{equation}
+\end{definition}
+
+A key advantage of this window partitioning is that active score computations across windows are completely independent. This structural property enables highly efficient, embarrassingly parallel execution on modern GPU architectures: multiple windows can be processed concurrently with near-linear speedup, substantially reducing end-to-end computation time even for chains with very long histories.
+
+For a miner \(u\) that mined a block at height \(i\), the window index containing this block is $k_u = \left\lfloor \frac{H - i}{L} \right\rfloor + 1$, which means \(i \in I_{k_u}\). While calculating miner  $u$'s active score, we will only consider the $k_u$-th window and the subsequent windows for miner $u$.
+
+\subsubsection{Three-Dimensional Activity Metrics}
+
+% We characterize each miner's on-chain behavior within window $I_k$ using three complementary indicators:
+
+% \begin{itemize}
+%     \item \textbf{Block Production Score} ($\text{BS}_{k,u}$): the number of blocks mined by $u$ inside $I_k$.
+    
+%     \item \textbf{Non-Contract Transaction Score} ($\text{TS}_{k,u}$): the total number of non-smart-contract transactions initiated by $u$ within $I_k$.
+    
+%     \item \textbf{Smart-Contract Interaction Score} ($\text{SCS}_{k,u}$):  quantifies $u$'s depth of interaction with high-quality smart contracts (defined below).
+% \end{itemize}
+
+% A key design consideration in selecting oracle committee members is to avoid conflating block production rights with genuine network participation. Under both PoW and PoS, the probability (and frequency) of proposing blocks is tightly coupled to control over the scarce resource underpinning consensus — computational power or economic stake, respectively. Consequently, block production activity predominantly reflects resource ownership rather than active, value-adding engagement with the chain.
+
+% To select committee members suitable for oracle, we therefore deliberately separate mining block behavior from transaction activity. This allows the inclusion of addresses that demonstrate persistent on-chain presence even in the absence of significant minting block success, thereby improving the representativeness of the selected committee.
+
+To identify suitable oracle committee members, we aim to capture addresses that exhibit persistent and meaningful on-chain participation, rather than merely reflecting control over the scarce resource that determines block proposal probability (computational power in PoW or economic stake in PoS).
+
+Toward this end, we characterize each miner's behavior during window $I_k$ using three complementary dimensions:
+
+\begin{itemize}
+    \item \textbf{Block Production Score} ($\text{BS}_{k,u}$): the number of blocks mined by $u$ inside $I_k$.
+   
+    \item \textbf{Non-Contract Transaction Score} ($\text{TS}_{k,u}$): the total number of non-smart-contract transactions initiated by $u$ within $I_k$.
+   
+    \item \textbf{Smart-Contract Interaction Score} ($\text{SCS}_{k,u}$): quantifies $u$'s depth of interaction with high-quality smart contracts (defined below).
+\end{itemize}
+
+Notably, while block production ($\text{BS}_{k,u}$) is an important signal of network contribution in its own right, it is predominantly a proxy for resource ownership rather than for active usage of the chain. Relying heavily on block production alone would therefore bias the committee toward large miners or stakers, at the expense of users who engage deeply with applications but rarely propose blocks.
+
+\subsubsection{Smart-Contract Score}
+To compute smart-contract interaction scores, we model user–contract interactions as a bipartite graph, use normalized gas-based weights to define transition probabilities, incorporate contract caller diversity via entropy, and iteratively update user and contract scores using a PageRank-like algorithm.
+
+Let $\mathcal{U}$ be the set of users and $\mathcal{C}$ the set of smart contracts. We model interactions between users and contracts as a weighted bipartite graph $G = (\mathcal{U} \cup \mathcal{C}, E)$, where an edge $u \to c$ carries weight $G_{u\to c}$ equal to the total gas used by $u$ when calling contract $c$ (aggregated over the relevant windows).
+
+Then we calculate the normalized weight from user $u$ to contract $c$ , and from contract $c$ to user $u$ is
+\begin{align}
+    p_{u,c} = \frac{G_{u\to c}}{\sum_{v\in\mathcal{U}} G_{v\to c}},p_{c,u}=\frac{G_{u\to c}}{\sum_{s\in\mathcal{C}} G_{u\to s}}
+\end{align}
+
+, respectively.
+
+Let $U_c \subseteq \mathcal{U}$ be the set of users that called contract $c$. then the normalized Shannon entropy of $c$'s caller distribution can be calculated as:
+\begin{align}
+    H(c) = -\frac{\sum_{u\in\mathcal{U}} p_{u,c} \log p_{u,c}}{\log |U_c|}
+\end{align}
+
+We adopt a damped PageRank\cite{page1999pagerank}-like iteration over the bipartite graph. Let $\text{CAC}^{(t)}(c)$ and $\text{UAS}^{(t)}(u)$ denote the contract authority and user activity scores at iteration $t$, respectively. The update rules are:
+\begin{align}
+\text{CAC}^{(t)}(c) &= \frac{1-d}{|\mathcal{C}|} 
++ d \cdot H(c) 
+  \sum_{u\in\mathcal{U}} p_{c,u} \cdot \text{UAS}^{(t-1)}(u)
+\\
+\text{UAS}^{(t)}(u) &= \frac{1-d}{|\mathcal{U}|} 
++ d \sum_{c\in\mathcal{C}} p_{u,c} \cdot \text{CAC}^{(t)}(c)
+\end{align}
+with uniform initialization $\text{UAS}^{(0)}(u) = \text{CAC}^{(0)}(c) = 1$ for all nodes. After sufficient iterations, we take $\text{SCS}_{k,u} = \text{UAS}^{(k)}(u)$ for miner $u$ in window $I_k$.
+
+Note that this design deliberately omits entropy-based diversity for users as typical users often interact with only a handful of popular protocols (e.g., Uniswap, Aave), so low diversity does not necessarily imply inactivity.
+
+\subsubsection{Aggregate Activite Score}
+
+We argue that sustained, long-term activity is more indicative of future reliability than short bursts of behavior. Therefore, we discount older windows exponentially and apply a bounded non-linear transformation to each per-window score. Define the set of metrics for miner $ u $ in the $ i $-th window as $\mathcal{X}_{i,u}=\{\text{BS}_{i,u}, \text{SCS}_{i,u},\text{TS}_{i,u}\}$. The final activity score for a miner $u$ is
+\begin{align}
+    \text{AS}_u = \sum_{k = h_u}^{\lceil H/L \rceil} 
+\sum_{x \in \mathcal{X}_{i,u}} \frac{2}{\pi} \arctan(x) \cdot \exp(-\lambda  k L)
+\end{align}
+where $\lambda > 0$ is a decay hyper-parameter. The arctan transformation bounds each dimension, preventing extreme values from dominating the score.
+
+Because the activity score incorporates exponential decay, the score assigned to a miner is increasing in the height of the blocks they mine. Formally, we establish the following lemma:
+
+\begin{lemma}[Recent Miner Score]
+\label{lemma:recent-miner-score}
+Let $h_a$ and $h_b$ denote the height of block minted by miner $a$ and $b$, respectively. If  
+\begin{equation}
+    h_a - h_b > (1 + \ln 6 - \frac{\ln(\exp(\lambda L) - 1)}{\lambda L}) L
+\end{equation}
+then $\text{AS}_a  > \text{AS}_b$.
+\end{lemma}
+
+\begin{proof}
+We first derive a lower bound on $\text{AS}_a$ and an upper bound on $\text{AS}_b$.
+
+Let $k_a$ and $k_b$ denotes the window index that contains $h_a$ and $h_b$, respectively. Since scores are non-negative and miner $a$ must mint a block, thus $\text{BS}_{k_a,a}\ge 1$, then we have
+\begin{align}
+    \text{AS}_a &\geq \frac{2}{\pi}\arctan(\text{BS}_{k_a,a}) \exp(-\lambda k_a L) \nonumber\\
+    &\geq \frac{1}{2} \exp(-\lambda k_a L)
+\end{align}
+
+For the upper bound, note that each per-window score satisfies
+\begin{align}
+    \sum_{x \in \mathcal{X}_{i,u}} \frac{2}{\pi} \arctan(x) < 3,
+\end{align}
+
+as $\frac{2}{\pi} \arctan(x) < 1$ for each of the three metrics. Thus,
+\begin{align}
+\text{AS}_b 
+&< \sum_{k = k_b}^{\lceil H/L \rceil} 3 \exp(-\lambda k L)\nonumber \\
+&= 3 \exp(-\lambda k_b L) \sum_{j=0}^{\lceil H/L \rceil - k_b} \exp(-\lambda L j)\nonumber \\
+&< 3 \exp(-\lambda k_b L) \sum_{j=0}^{\infty} \exp(-\lambda L j)\nonumber \\
+&=   \frac{3 \exp(-\lambda k_b L)}{1 - \exp(-\lambda L)},
+\end{align}
+
+To ensure $\text{AS}_a > \text{AS}_b$, it suffices that
+\begin{align}
+\frac{1}{2} \exp(-\lambda k_a L) &> \frac{3 \exp(-\lambda k_b L)}{1 - \exp(-\lambda L)},
+\end{align}
+which yields:
+\begin{align}
+k_b - k_a &> \frac{1}{\lambda L} \ln \left( \frac{6}{1 - \exp(-\lambda L)} \right)\nonumber \\
+&=\frac{1}{\lambda L}(\ln6 \lambda L - \ln(\exp(\lambda L) - 1))\nonumber\\
+&= \ln 6 - \frac{\ln(\exp(\lambda L) - 1)}{\lambda L}
+\end{align}
+Let $ \Delta = \ln 6 - \frac{\ln(\exp(\lambda L) - 1)}{\lambda L}$.
+Now, $k_b - k_a = \left\lfloor \frac{H - h_b}{L} \right\rfloor - \left\lfloor \frac{H - h_a}{L} \right\rfloor$. Since $\left\lfloor x \right\rfloor - \left\lfloor y \right\rfloor > x - y - 1$. A sufficient condition for this difference to exceed $\Delta_{a,b}$ is
+\begin{align}
+k_b - k_a > \Delta + 1 
+\iff \frac{h_a - h_b}{L} > \Delta + 1,
+\end{align}
+
+for $x > y \geq 0$. Thus, $h_a - h_b > (\Delta + 1) L$ guarantees the desired inequality.
+\end{proof}
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[Active score histogram\label{fig:active_score_distribution}]{%
+        \includegraphics[width=0.48\linewidth]{figure/score_distribution.pdf}%
+    }
+    \hfill
+    \subfloat[Max block number minted by miner v.s. miner active score\label{fig:max_block_num_vs_active_score}]{%
+        \includegraphics[width=0.48\linewidth]{figure/score_vs_max_block_num.pdf}%
+    }
+    \caption{Active score figure}
+\end{figure}
+We crawled and processed transaction data from Etherscan~\cite{etherscan2025} for blocks ranging from height 24,236,736 to 24,266,735, i.e. 30,000 blocks in total. Employing an exponential decay parameter $  \lambda = 0.2  $ and performing 5 iterations of smart contract score calculation, with a block interval $  L=1000  $, we computed the active score for each miner throughout this epoch.
+
+Fig.~\ref{fig:active_score_distribution} displays the histogram of active scores across all miners. The distribution reveals a pronounced long-tail shape: the vast majority of miners exhibit very low active scores, while a small number of highly active miners achieve significantly larger values, resulting in a heavy right tail. This skewness is characteristic of highly unequal participation in PoS blockchain.
+
+Fig.~\ref{fig:max_block_num_vs_active_score} depicts a scatter plot relating each miner's active score to the highest block height they have mined. A clear negative trend emerges: miners with smaller distances (i.e., those who have remained active closer to the current chain tip) tend to exhibit higher active scores. This empirical relationship also provides supporting evidence for Lemma \ref{lemma:recent-miner-score}.
+
+\subsection{Determination of Selection Window}
+\label{sec:adaptive-selection-parameters}
+In this section, we propose a dynamic adjustment mechanism to determine the parameter $  \xi  $. At the current block height $  H  $, $  \xi  $ is defined as the shortest trailing window that contains at least $  N_{\text{target}}  $ miners whose activity score exceeds a given threshold $  \tau  $. Formally,
+\begin{equation}
+    \xi = \min_{k \in \mathbb{N}^+} \;\text{s.t.}\; \left|\{p \in \mathcal{M}_{[H-k+1,\,H]} \mid AS_p > \tau \}\right| \geq N_{\text{target}},
+\end{equation}
+
+where $  \mathcal{M}_{[a,b]}  $ denotes the set of miners that minted at least one block in the range $  [a, b]  $, and $  AS_p  $ is the activity score of miner $  p  $.
+
+To bootstrap the mechanism, the initial threshold $\tau^{(1)}$ is set to the median activity score of all miners active in a recent initialization window of length $W_{\text{init}}$:
+
+\begin{equation}
+\tau^{(1)} = \text{median} \bigl\{ \text{AS}_p \mid p \in \mathcal{M}_{[H-W_{\text{init}}+1,\, H]} \bigr\}.
+\end{equation}
+
+The threshold $  \tau  $ is then adaptively updated at the beginning of each committee selecting epoch, with the explicit objective of driving the realized nominating committee size $  |\mathcal{P}|  $ toward the target value $  N_{\text{target}}  $. Let $  \tau^{(e)}  $ and $  |\mathcal{P}^{(e)}|  $ denote the threshold employed and the resulting nominating committee size observed during epoch $  e  $, respectively. The threshold for the subsequent epoch is then updated according to the simple proportional control rule:
+
+\begin{equation}
+    \tau^{(e+1)} = \tau^{(e)} + \eta \cdot (N_{\text{target}} - |\mathcal{P}^{(e)}|)
+\end{equation}
+
+where \(\eta > 0\) is a hyper-parameter represents the learning rate.
+
+This update strategy is intentionally designed to provide negative feedback that stabilizes committee size around the desired setpoint. Specifically, when the nominate committee size$  |\mathcal{P}^{(e)}|  $ exceeds $  N_{\text{target}}  $, the positive error term $  (N_{\text{target}} - |\mathcal{P}^{(e)}|)  $ becomes negative, which decreases $  \tau  $ in the next epoch. A lower $  \tau  $ relaxes the activity score requirement, thereby shortening the minimal window length $  \xi^{(e+1)}  $ needed to reach $  N_{\text{target}}  $ active miners and ultimately reducing the nominating committee size. Conversely, when $  |\mathcal{P}^{(e)}| < N_{\text{target}}  $, the error is positive, $  \tau  $ is increased, the selection criterion becomes stricter, $  \xi  $ lengthens, and more miners are included to push the nominating committee size upward.
+
+By jointly adapting $\xi$ and $ \tau $ in a closed-loop manner, the proposed mechanism offers the following key advantages:
+\begin{itemize}
+    \item \textbf{Elimination of manual calibration brittleness} Fixed thresholds are inherently suboptimal across diverse network conditions and require frequent off-chain governance intervention. The adaptive rule continuously refines $  \tau  $ based on the observed nominating committee size, achieving a more precise operating point relative to $N_{\text{target}}$ without human tuning.
+    \item \textbf{Robustness to temporal fluctuations in miner activity} Blockchains exhibit large variations in aggregate participation due to economic cycles. By dynamically adjusting $  \tau  $ in proportion to the deviation from the target pool size after each epoch, the protocol automatically aligns the eligibility criterion with the prevailing activity level.
+\end{itemize}
+
+Computing the active score for every miner in each election round would incur prohibitively high computational overhead. The following theorem allows us to drastically reduce this cost in our scheme:
+\begin{theorem}[]
+\label{thm:threshold_selection}
+Let \( \tau \in \mathbb{R} \) be a fixed activity threshold, and define the selected miner set as $\mathcal{S}_\tau := \{\, u \mid \mathrm{AS}_u > \tau \,\}$ and $|S|=N_{\text{target}}$. Then:$$\forall w \in \text{miner},\quad h_w \ge N_{\text{target}} + \Delta \;\Rightarrow\; w \notin \mathcal{S}_\tau.$$
+\end{theorem}
+\begin{proof}
+Consider the miner set $S=\{w \mid h_w \le N_{\text{target}}\}$.
+\begin{itemize}
+    \item if $\exists i \in S$, $i \notin S_\tau$, then $\text{AS}_i \le \tau$. According to Lemma \ref{lemma:recent-miner-score}, $\forall w \in \text{miner}, h_w \ge N_{\text{target}}+\Delta\ge i+\Delta, \text{AS}_w \le \tau$. Then $w \notin S_\tau$
+    \item  if $S \subseteq S_\tau$, since $|S|=N_{\text{target}}=|S_\tau|$, then $S=S_\tau$, then $\forall w \in \text{miner}, h_w \ge N_{\text{target}}+\Delta>N_{\text{target}}, w \notin S=S_\tau$.
+\end{itemize}
+this concludes the proof.
+\end{proof}
+Thus, we will only calculate miners who minted block at height ranging from $H-\Delta-N_{\text{target}}$ to $H$.
+
+The initial committee is selected through a standard Proof-of-Work mechanism. For all subsequent committee selection procedure, the outgoing committee calculates the active scores of miners and determine $\xi$ and $\tau$. Because the on-chain data is identical and deterministic for all nodes, every committee member computes the exact same active score for each miner. Since the calculation logic are fully deterministic and publicly verifiable, the committee members will calculate exact the same $\xi$ and $\tau$.
+
+\subsection{Partitioning Scheme}
+\label{sec:calculate-committee-size}
+In this section, we will calculate the total number of subcommittee ($C$), and each subcommittee size ($S_1,\cdots,S_C$).
+
+\subsubsection{Problem Formulation}
+We model this problem as a mathematical optimization problem. Let \(p\) denote the probability that any member is adversarial. A subcommittee is considered compromised if the adversarial node controls more than half of its members. Letting $S_j$ denote the number of nodes in the $j$-th subcommittee, the probability $\text{PF}(S_j)$ that the committee $j$ is compromised is:
+\begin{align}
+\text{PF}(S_j) = \sum_{i= \left\lceil S_j/2 \right\rceil}^{S_j} \binom{S_j}{i} p^{i} (1-p)^{S_j-i}
+\end{align}
+
+Let $P_{\text{all}}$ denote the probability that \code{FastOracle} is compromised. In our protocol, security requires that all committees behave honestly. Since selecting nominating committee fails with probability at $P_{\text{select}}$ due to chain quality. Let $C$ denotes the number of subcommittees. The overall compromise probability satisfies:
+
+\begin{equation}
+P_{\text{all}}=1-(1-P_{\text{select}})\prod_{j=1}^{C}\Big(1-\text{PF}(S_j)\Big)
+\end{equation}
+
+For any committee partitioning scheme $\Pi=[S_1,\cdots,S_C]$, $S_j$ and $C$ must satisfy the following requirements:
+\begin{equation}
+    \forall i \in \left[1,C \right], 1 \leq S_j \le N_{\text{target}},\;\sum_{j=1}^C S_j=N_{\text{target}}
+\end{equation}
+
+In order to improve throughput while satisfying $\alpha$-bit security, We aim to find $\Pi^*,C$ that is lexicographically minimal with respect to the objective vector $(-C, P_{\text{all}})$. Formally, we define the problem as:
+\begin{align}
+&\text{lex-min} && (-C, P_{\text{all}}) \nonumber \\
+&\text{s.t.} \quad & P_{\text{all}}(\Pi) &\le 2^{-\alpha}, \nonumber \\
+& & \sum_{i \in \Pi} i &= N_{\text{target}}.
+\end{align}
+
+\subsubsection{Solution Approach}
+We solve this problem in two steps. First, for a given number of subcommittee $C$, we solve out the optimal partition scheme. Second, through theoretical analysis, we derive the upper and lower bounds of the optimal $C $. We then perform a traversal within this bounded interval to obtain the globally optimal value of $C$.
+
+\begin{theorem}
+$1-\text{PF}(S)$ is a log-concave function when $S \to \infty$
+\end{theorem}
+\begin{proof}
+$\text{PF}$ is defined as the right-tail cumulative distribution function. Bahadur–Rao theorem\cite{BahadurRao1960} gives that
+\begin{equation}
+\text{PF}(S) \sim \frac{c(p)}{\sqrt{S}} \exp \bigl( -S \, I(1/2) \bigr),\quad n \to \infty
+\end{equation}
+Let $g(S) =\frac{c}{\sqrt{S}} e^{-S I(1/2)}$, let \( h(N) = 1 - g(N) \). The second derivative of \( \ln h \) is given by $(\ln h)'' = \frac{h'' h - (h')^2}{h^2}$. Since \( h' = -g' \) and \( h'' = -g'' \), it follows that $h'' h - (h')^2 = -g''(1 - g) - (g')^2$. Given the expression $\ln g = \ln C - I N - \frac{1}{2}\ln N$, taking the second derivative on both sides yields $g\cdot g'' = \frac{g^2}{2N^2}+g'^2 >0$. Furthermore, since \( 1>g > 0 \), it follows that \( g'' > 0 \). Consequently, $-g''(1 - g) - (g')^2 < 0$, which implies $(\ln h)'' < 0$, which means $1-\text{PF}(S)$ is a log-concave function when $S \to \infty$.
+\end{proof}
+
+\begin{theorem}[Optimal partition scheme]
+If $1-PF(S_j)$ is a log-concave function, for certain $C$, the optimal partition method is
+\begin{align}
+\Pi = \underbrace{\lfloor\frac{N_{\text{target}}}{C} \rfloor}_{y \text{ times}},\underbrace{\lfloor\frac{N_{\text{target}}}{C} \rfloor+1}_{N_{\text{target}}-y \text{ times}}
+\end{align}
+, where $y=C\lfloor\frac{N_{\text{target}}}{C} \rfloor+C-N_{\text{target}}$.
+\end{theorem}
+
+\begin{proof}
+Since the number of partition schemes is finite, there must exist an optimal scheme $\Pi^*$. $\forall a,b \in \Pi^*$, if $|a-b|\ge2$, Assume without loss of generality that $a\ge b+2$, then $(1-PF(a))(1-PF(b))\ge (1-PF(a-1))(1-PF(b+1))$. This contradicts the assumption that $\Pi^*$ is optimal.
+
+Let $x$ be the minimum value of $\Pi^*$, then value in $\Pi$ must be $x$ or $x+1$. Assume the number of $x$ in $\Pi^*$ is $y$. Then we have: $xy+(x+1)(C-y)=N_{\text{target}}$, which means $Cx+C-y=N_{\text{target}}$. 
+
+Since $1\le y \le C$, $\frac{N_{\text{target}}}{C}-1< x \le \frac{N_{\text{target}}}{C}$, since $x$ is an integer, we have $\lfloor\frac{N_{\text{target}}}{C}\rfloor-1< x \le \lfloor\frac{N_{\text{target}}}{C}\rfloor$, then $x=\lfloor\frac{N_{\text{target}}}{C} \rfloor$, $y=C\lfloor\frac{N_{\text{target}}}{C} \rfloor+C-N_{\text{target}}$.
+\end{proof}
+
+To determine the optimal value of $C$, the subsequent theorems establish upper and lower bounds on $C$. The optimal value of $C$ is then identified by searching within this feasible interval. In addition, to simplify the complex expressions, we introduce the following symbol table to encapsulate recurring expressions:
+\begin{table}[ht]
+    \renewcommand{\arraystretch}{1.4}
+    \centering
+    \begin{tabular}{c|c}
+        symbol & expression \\
+        \hline
+        $L$ & $\ln(1 - 2^{-\alpha})-\ln \left( 1 - P_{\text{select}}\right)$ \\
+        \hline
+        $\beta$ & $\ln(2p)$\\
+        \hline
+        $D$ & $D_{\text{KL}}(\frac{1}{2} \| p) \cdot N_{\text{target}}$
+    \end{tabular}
+    \vspace{3pt}
+    \caption{Notation Summary}
+    \label{tab:Notation-Summary}
+\end{table}
+
+
+\begin{lemma}[Lower bound of $P_{\text{all}}$]
+\label{lemma:p_all_lower_bound}
+$$P_{\text{all}} \ge 1 - (1 - P_{\text{select}}) \exp\left( -\frac{C}{2} (2p)^{N_{\text{target}} / C} \right)$$
+\end{lemma}
+\begin{proof}
+Since $p < 1/2$, it holds that $(1-p)^x > p^x$ for all $x > 1$. Then:
+\begin{align}
+\text{PF}_j \ge \sum_{i=\lceil S_j/2 \rceil}^{S_j} \binom{S_j}{i} p^{S_j} 
+\ge \frac{1}{2} (2p)^{S_j}
+\end{align}
+According to \textbf{Jensen's inequality}\cite{jensen1906convexes}, the failure probability $P_{\text{all}}$ can then be lower-bounded as follows:
+\begin{align}
+P_{\text{all}} &= 1 - (1-P_{\text{select}}) \prod_{j=1}^{C}\Big(1-\text{PF}(S_j)\Big) \nonumber \\
+&\ge 1 - (1-P_{\text{select}})\prod_{j=1}^{C} (1 - \frac{1}{2} (2p)^{S_j}) \nonumber \\
+&\ge 1 - (1-P_{\text{select}})\left(1 - \frac{1}{2} (2p)^{N_{\text{target}} / C}\right)^C
+\end{align}
+Since $(1-a)^C<e^{-aC}$, we have:
+\begin{align}
+P_{\text{all}} > 1 - (1-P_{\text{select}})\exp\left(- \frac{C}{2} (2p)^{N_{\text{target}} / C} \right)
+\end{align}
+This concludes the proof.
+\end{proof}
+
+\begin{theorem}[Upper bound of $C$]
+\label{theorem:c-lower-bound}
+To satisfy $P_{\text{all}} \le 2^{-\alpha}$, the number of committees $C$ must satisfy the following upper bound:
+\begin{equation}
+C \le \left\lfloor- \frac{\beta N_{\text{target}}}{W_0\left(\frac{\beta N_{\text{target}}}{2L} \right)}
+ \right\rfloor
+\end{equation}
+Where $W_0(x)$ is the main branch of Lambert W function\cite{Lambert1996Corless}.
+\end{theorem}
+
+\begin{proof}
+According to Lemma \ref{lemma:p_all_lower_bound}, we have:
+\begin{equation}
+2^{-\alpha} \ge P_{\text{all}} \ge 1 - (1 - P_{\text{select}}) \exp\left(- \frac{C}{2} (2p)^{N_{\text{target}} / C} \right)
+\end{equation}
+Then we have:
+\begin{align}
+&\frac{C}{2} (2p)^{N_{\text{target}} / C} \leq -L \nonumber\\
+\iff &C \exp(\frac{\beta N_{\text{target}}}{C}) \le -2L \nonumber\\
+\iff &-\frac{\beta N_{\text{target}}}{C}\exp(-\frac{\beta N_{\text{target}}}{C}) \ge \frac{\beta N_{\text{target}}}{2L}
+\end{align}
+Since $x=-\frac{\beta N_{\text{target}}}{C}>0$, $y=\frac{\beta N_{\text{target}}}{2L}>0$. $xe^x \ge y \iff x\ge W_0(y)$, we have:
+\begin{align}
+C \le -\frac{\beta N_{\text{target}}}{W_0\left( \frac{\beta N_{\text{target}}}{2L} \right)}
+\end{align}
+
+\end{proof}
+
+\begin{lemma}[Upper Bound of $P_{\text{all}}$]
+\label{lemma:pall_upper_bound}
+$$P_{\text{all}} \le P_{\text{select}} + (1 - P_{\text{select}})  C  \exp\left(- \tfrac{D}{C} \right)$$
+\end{lemma}
+\begin{proof}
+In our protocol, the size of each committee $  S_j  $ satisfies $S_j \ge  N_{\text{target}}/C $. Applying \textbf{Chernoff's Bound}\cite{chernoff1952measure}, we have:
+\begin{align}
+\text{PF}(S_j) \le \exp(-D_{\text{KL}}(\frac{1}{2}\|p) \cdot S_j)
+\le \exp(- \frac{D}{C} )
+\end{align}
+Then we have:
+$$P_{\text{all}} \le 1 - (1 - P_{\text{select}}) \left(1 - \exp(-\frac{D}{C}) \right)^C$$
+Applying \textbf{Bernoulli's inequality}\cite{bernoulli1689positiones} $(1-x)^C > 1-Cx$, we have:
+$$P_{\text{all}} \le P_{\text{select}} + (1 - P_{\text{select}})  C  \exp\left(- \tfrac{D}{C} \right)$$
+\end{proof}
+
+\begin{theorem}[Lower bound of $C$]
+\label{thm:lower-bound-c}
+if $$C= \left\lfloor\frac{D}{W_0(\frac{D}{1-\exp(L)})} \right\rfloor=C_{\min}$$. 
+Then the inequality $P_{\text{all}} \le 2^{-\alpha}$ must holds.
+\end{theorem}
+\begin{proof}
+\begin{align}
+&P_{\text{select}} + (1 - P_{\text{select}})  C  \exp\left(- \tfrac{D}{C} \right) \le 2^{-\alpha}\nonumber \\
+\iff &1-C  \exp\left(- \frac{D}{C} \right) \ge \exp(L)\nonumber\\
+\iff &C  \exp\left(- \frac{D}{C} \right) \le 1-\exp(L) \nonumber\\
+\iff &\frac{D}{C}  \exp\left( \frac{D}{C} \right) \ge \frac{D}{1-\exp(L)}
+\end{align}
+
+Since $x=\frac{D}{C}>0$, $y=\frac{D}{1-\exp(L)}>0$. $xe^x \ge y \iff x\ge W_0(y)$, we have:
+\begin{equation}
+    C \le \frac{D}{W_0(\frac{D}{1-\exp(L)})}
+\end{equation}
+\end{proof}
+
+When $C = C_{\min}$, according to Lemma \ref{lemma:pall_upper_bound}, it holds that $P_{\text{all}} \leq 2^{-\alpha}$. Since our objective is to identify the maximum value of $C$, it suffices to restrict the search to all candidates $C \geq C_{\min}$.
+
+Table.~\ref{table:n_target_vs_alpha_c} presents the optimal committee size factor $C$ under $ P_{\text{select}} = 2^{-100} $, across varying target committee sizes ($ N_{\text{target}} $) and security parameters ($ \alpha $). Notably, except in extreme parameter regimes (e.g., large $ \alpha $ combined with small $ N_{\text{target}} $), the derived values of $ C $ consistently exceed 1. This implies that the consensus committee can be partitioned into at least two subcommittees while still satisfying the required security.
+\begin{table}[ht]
+\label{table:n_target_vs_alpha_c}
+\begin{tabular}{c|cccccccc}
+\hline
+$n_{\text{target}} \backslash \alpha$ & 20 & 25 & 30 & 35 & 40 & 45 & 50 & 55 \\
+\hline
+1000 & 4 & 3 & 3 & 2 & 2 & 2 & 1 & 1 \\
+1500 & 7 & 5 & 4 & 4 & 3 & 3 & 2 & 2 \\
+2000 & 9 & 7 & 6 & 5 & 4 & 4 & 3 & 3 \\
+2500 & 11 & 9 & 7 & 6 & 5 & 5 & 4 & 4 \\
+3000 & 13 & 10 & 9 & 7 & 6 & 6 & 5 & 5 \\
+\hline
+\end{tabular}
+\vspace{3pt}
+\caption{The optimal values of $C$ for different $N_{\text{target}}$ and $\alpha$ when $P_{\text{select}}=2^{-100}$}
+\end{table}
+
+Notably, both the Chernoff inequality\cite{chernoff1952measure} and Bernoulli inequality\cite{bernoulli1689positiones} are quite tight. Thus, the upper bound on $P_{\text{all}}$ derived in Lemma \ref{lemma:pall_upper_bound} serves as a close approximation to the true $P_{\text{all}}$. Furthermore, $P_{\text{all}}$ displays a roughly monotonic dependence on $C$. Consequently, in computationally constrained settings, it is reasonable to directly use the $C_{\min}$ given in Theorem \ref{thm:lower-bound-c} as the optimal value of $C$.
+
+\begin{figure}[ht]
+    \includegraphics[width=\linewidth]{figure/c_vs_alpha.pdf}
+    \vspace{-25pt}
+    \caption{$\alpha$-bit security threshold v.s. subcommittee number ($C$) when $P_{\text{select}}=2^{-100}$, $p=0.33$ and $N_{\text{target}}=2000$}
+    \label{fig:c_vs_alpha}
+\end{figure}
+Fig.~\ref{fig:c_vs_alpha} shows the optimal value of $C$, together with its theoretical upper and lower bounds, as a function of $\alpha$. The optimal solution consistently remains within the feasible interval defined by the maximum and minimum possible values. Moreover, in agreement with the analysis presented earlier, the optimal value of $C$ closely tracks the lower bound, indicating that the minimum feasible solution provides a tight approximation to the optimum.
+
+
+\section{IMPLEMENTATION AND EVALUATION}
+
+Next, we implement the proposed \code{FastOracle}, and evaluate its performance in terms of request processing time, request processing throughput, queue size of request pool, and the number of generated certificates. 
+
+\subsection{Experimental Setup}
+\textbf{Basic Settings.} We conduct our \code{FastOracle} prototype in Golang and evaluated its performance on PoS blockchain and PoW blockchain, respectively. The prototype was deployed on a Windows system with an Intel CPU Core i7-12700H (2.30GHz) and 32GB of DDR5 RAM. 
+
+All experiments were conducted with a oracle network size of \(N=2000\) nodes. Following the committee size analysis in Section \ref{sec:calculate-committee-size}, \code{FastOracle} organizes nodes into 4 parallel committees, each comprising 440 nodes. The maximum number of Byzantine nodes was fixed to \(\lfloor \frac{N-1}{3} \rfloor\).
+
+Each experiment consisted of 20,000 requests injected at a fixed rate of 100 requests/sec. External data were fetched via HTTPS from the Shenzhen Stock Exchange\cite{SZSE_Homepage} under a constrained downlink bandwidth of 100 Mb/s. Requests were processed in batches of 15 as the Shenzhen Stock Exchange\cite{SZSE_Homepage} imposes limits on parallel HTTPS requests per IP. The systems run continuously until all requests are confirmed by the blockchain.We added a delay ranging from 1 second to 2 second to each message to simulate the geographic
+distribution of nodes.
+
+\textbf{Chain Settings.} We deployed an Ethereum-compatible blockchain using Ganache \cite{Ganachesoftware}. To emulate representative PoS and PoW environments, we configured average block intervals of 12 seconds (Ethereum-like PoS) and 600 seconds (Bitcoin-like PoW), respectively.
+
+\textbf{Baseline Solutions.} For comprehensive benchmarking, we also implemented four state-of-the-art oracle schemes in Golang:
+
+\begin{itemize}
+    \item \textbf{SenFeed\cite{infocom2025seenfeed}}: A dynamic decentralized oracle for IoT streaming data. It employs incremental truth discovery for real-time accurate inference and a novel BFT consensus protocol supporting dynamic node membership without system resets.
+    
+    \item \textbf{DeepThought \cite{DiGennaro2022DeepThought}}: A human-in-the-loop oracle that certifies off-chain information via distributed voting and reputation mechanisms, achieving stronger resistance to voter corruption than prior reputation-based systems.
+    
+    \item \textbf{DECENTRUTH\cite{infocomdecentruth}}: A truth-discovery oracle addressing deceitful but authentic sources. It combines off-chain truth discovery with asynchronous BFT consensus to deliver highly accurate estimated truths.
+    
+    \item \textbf{DAON\cite{infocom2023daon}}: A fully autonomous oracle network with a dedicated consensus protocol, non-interactive reputation and payment schemes, and continuous security monitoring, ensuring tamper-proof data feeds for smart contracts in complex Byzantine environments.
+\end{itemize}
+
+These baselines enable a fair and reproducible comparison with \code{FastOracle} under identical hardware, network, and workload conditions.
+
+\textbf{Metrics.} We evaluate our \code{FastOracle} using the following four metrics: \textbf{i) Request processing time.} The time required to process a single request, measured from the moment when the request is submitted to the oracle network until the requested data is successfully confirmed on-chain. \textbf{ii) Request processing throughput.} The number of requests processed per second by oracle system. \textbf{iii) Queue size of request pool.} The number of pending requests in the oracle request pool. \textbf{iv) Queueing delay time.} The time each request spends waiting in the queue before being processed. \textbf{v) Cumulative number of generated signature.} Cumulative number of signature generated by oracle nodes.
+
+\subsection{Experiment Result}
+
+\subsubsection{Latency}
+\begin{figure}[ht]
+    \includegraphics[width=\linewidth]{figure/01_breakdown/stacked_breakdown_pos.pdf}
+    \caption{POS latency}
+    \label{fig:pos-overall-latency}
+\end{figure}
+
+\begin{figure}[ht]
+    \includegraphics[width=\linewidth]{figure/01_breakdown/stacked_breakdown_pow.pdf}
+    \caption{POW latency}
+    \label{fig:pow-overall-latency}
+\end{figure}
+
+We first evaluate latency of oracle request processing by dividing it into three phases: (1) data retrieval, (2) off-chain consensus, and (3) on-chain confirmation. For each processed request, we measure the duration of these phases and compute the per-phase average latency across all requests for each oracle schemes. The results are shown in Fig. \ref{fig:pow-overall-latency} (PoW chain) and Fig.\ref{fig:pos-overall-latency} (PoS chain).
+
+As shown in figure, data retrieval time and on-chain confirmation time are comparable across all schemes. However, our scheme exhibits lower off-chain consensus latency than the other oracle schemes except DAON\cite{infocom2023daon}, since the security of our \code{FastOracle} relies on the underlying blockchain, eliminating the need for redundant consensus mechanisms required by other oracle schemes to ensure security.
+
+\subsubsection{Throughput vs. Latency}
+
+\begin{figure}[ht]
+    \includegraphics[width=\linewidth]{figure/05_scalability/pos_quantity_vs_time.pdf}
+    \caption{POS}
+    \label{fig:pos-handle-num-vs-latency}
+\end{figure}
+
+\begin{figure}[ht]
+    \includegraphics[width=\linewidth]{figure/05_scalability/pow_quantity_vs_time.pdf}
+    \caption{POW}
+    \label{fig:pow-handle-num-vs-latency}
+\end{figure}
+
+We further measured the relationship between the number of processed requests and total latency. Specifically, we evaluate the total latency for each scheme when handling 1,000, 3,000, 6,000 and 10,000 requests on both PoW and PoS chains. The results are presented in Fig.\ref{fig:pos-handle-num-vs-latency} for PoS chain and Fig.\ref{fig:pow-handle-num-vs-latency} for PoW chain.
+
+As shown in the figures, the total latency increases with increase of the number of request. Obviously, \code{FastOracle} consistently outperforms the baseline schemes across all evaluated request volumes. For instance, \code{FastOracle} processes 3000 requests in 232 seconds, while the fastest baseline (which is DAON\cite{infocom2023daon}) requires 987 seconds. This trend holds across the entire range of request numbers. These results show that \code{FastOracle} achieves significantly higher throughput compared to the baseline schemes on both PoS and PoW chains.
+
+\begin{figure*}[ht]
+    \centering
+    \subfloat[Throughput\label{fig:pos-throughput}]{%
+        \includegraphics[width=0.3\linewidth]{figure/03_throughput/throughput_stability_pos.pdf}%
+    }
+    \hfill
+    \subfloat[Queue Size\label{fig:pos-queue}]{%
+        \includegraphics[width=0.3\linewidth]{figure/02_queue/queue_dynamics_pos.pdf}%
+    }
+    \hfill
+    \subfloat[Number of Signature \label{fig:pos-cert}]{%
+        \includegraphics[width=0.3\linewidth]{figure/04_certificate/certificate_cdf_pos.pdf}%
+    }
+
+    
+    \caption{POS Performance.}
+\end{figure*}
+
+\begin{figure*}[ht]
+    \centering
+    \subfloat[Throughput\label{fig:pow-throughput}]{%
+        \includegraphics[width=0.3\linewidth]{figure/03_throughput/throughput_stability_pow.pdf}%
+    }
+    \hfill
+    \subfloat[Queue Size\label{fig:pow-queue}]{%
+        \includegraphics[width=0.3\linewidth]{figure/02_queue/queue_dynamics_pow.pdf}%
+    }
+    \hfill
+    \subfloat[Number of Signature\label{fig:pow-cert}]{%
+        \includegraphics[width=0.3\linewidth]{figure/04_certificate/certificate_cdf_pow.pdf}%
+    }
+
+    
+    \caption{POW Performance.}
+\end{figure*}
+
+\subsubsection{Throughput}
+We evaluate the throughput of the compared oracle schemes by tracking the cumulative count of requests processed every 20 seconds throughout the experiment, and plotted the results in Fig.\ref{fig:pos-throughput} and Fig.\ref{fig:pow-throughput} for the PoS and PoW chain, respectively.
+%As shown in figures, the throughput of all schemes sustains a positive level while requests are being processed and drops to zero once all requests are handled. 
+
+We easily observe that \code{FastOracle} reaches zero throughput significantly earlier than other baseline schemes, indicating that it requires less time to handle all requests. Moreover, \code{FastOracle} exhibits markedly higher throughput compared to the other schemes. In particular, \code{FastOracle} achieves approximately 3$\times$ faster than the best baseline (DAON\cite{infocom2023daon}) on both POW and POS chain.
+
+\subsubsection{Queue Size}
+We measure the queue size of the request pool of various oracle schemes to assess the performance of processing requests.
+Fig.~\ref{fig:pos-queue} and Fig.~\ref{fig:pow-queue} represents how the queue size of oracle evolves as the system’s runtime progresses on PoS and PoW chains, respectively. 
+%In both settings, the queue size rises initially as requests are injected, peaks when the injection phase completes, and then declines as the oracle processes pending requests.
+We find that \code{FastOracle}'s queue size decreases faster than the other baseline schemes, demonstrating that \code{FastOracle} achieves higher request processing throughput. Notably,  \code{FastOracle}'s queue size converges to zero the fastest compared to all baselines, indicating that it achieves the lowest latency for processing the entire requests among all schemes on both PoS and PoW chains.
+
+\subsubsection{Certificate}
+As DeepThought~\cite{DiGennaro2022DeepThought} relies on on-chain consensus and does not produce off-chain certificates, we exclude it from this evaluation.
+
+Fig.\ref{fig:pos-cert} and Fig.\ref{fig:pow-cert} presents the cumulative number of generated signature across different schemes in POS and POW chain, respectively. The x-axis denotes time in seconds, while the y-axis represents the cumulative number of generated signature.
+
+\section{CONCLUSION}
+
+\bibliographystyle{IEEEtran}
+\bibliography{reference}
+\end{document}
