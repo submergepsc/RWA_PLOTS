@@ -101,7 +101,7 @@ def plot_throughput_stability(network: str, out_dir: str):
 
     df_tps = calculate_throughput(df) 
     bios_val = 550 if network == 'pow' else 0
-    
+
     mask = df_tps['time'] > bios_val
     x_vals = df_tps.loc[mask, 'time'] - bios_val
     x_label = "Time (s)"
@@ -124,7 +124,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                 zorder = 10 if key == 'committee' else 1
                 alpha = 0.9 if key == 'committee' else 0.7
                 lw = 3.0
-                
+
                 ax1.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
                          linewidth=lw, alpha=alpha, zorder=zorder)
                 ax2.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
