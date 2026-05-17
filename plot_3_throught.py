@@ -10,7 +10,8 @@ Plot 4: RWA-FastOracle 吞吐量稳定性分析 (Throughput Stability)
 import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch
-from matplotlib.ticker import FuncFormatter
+from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 import pandas as pd
 import numpy as np
 from typing import Dict
@@ -24,30 +25,54 @@ PLOT_TYPE_NAME = "03_throughput"
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "FastOracle", "color": "#1f77b4"},
     "deepthought": {"label": "Deep.", "color": "#9467bd"},
-    "seenfeed": {"label": "Seen.", "color": "#d62728"},
-    "decentruth": {"label": "Decen.", "color": "#2ca02c"},
-    "daon": {"label": "Daon.", "color": "#ff7f0e"},
+    "seenfeed": {"label": "Sen.", "color": "#d62728"},
+    "decentruth": {"label": "DECEN.", "color": "#2ca02c"},
+    "daon": {"label": "DAON", "color": "#ff7f0e"},
 }
 
 # 样式配置 (保留原脚本高字号)
-AXIS_LABEL_SIZE = 44
-TICK_LABEL_SIZE = 40
-LEGEND_FONT_SIZE = 30
-DEFAULT_FIGSIZE = (12, 9)
-SAVEFIG_KWARGS = {}
+AXIS_LABEL_SIZE = 24
+TICK_LABEL_SIZE = 20
+LEGEND_FONT_SIZE = 14
+DEFAULT_FIGSIZE = (8, 6)
+SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
-ANNOTATION_TEXT = "All requests have been handled."
-ANNOTATION_TEXT_COLOR = "black"
-ANNOTATION_FONT_SIZE = 25 # 文本框字体大小
-ANNOTATION_BOX_STYLE = dict(
-    boxstyle='round,pad=0.5',
+POW_BOXPLOT_MARGINS = dict(left=0.24, right=0.96, bottom=0.16, top=0.96)
+POW_PANEL_TITLE_SIZE = 20
+POW_PANEL_TICK_LABEL_SIZE = 18
+POS_FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.95)
+POS_AXIS_LABEL_SIZE = 24
+POS_TICK_LABEL_SIZE = 20
+POS_LEGEND_FONT_SIZE = 14
+POS_ANNOTATION_FONT_SIZE = 18
+POS_LINE_WIDTH_FAST = 2.2
+POS_LINE_WIDTH_BASELINE = 1.6
+POS_VLINE_WIDTH = 1.5
+POS_ANNOTATION_BOX_STYLE = dict(
+    boxstyle='round,pad=0.55',
     facecolor='white',
     edgecolor='black',
     alpha=0.95,
 )
+ANNOTATION_TEXT = "All requests\nhave been handled"
+ANNOTATION_TEXT_COLOR = "black"
+ANNOTATION_FONT_SIZE = 18
+ANNOTATION_BOX_STYLE = dict(
+    boxstyle='round,pad=0.75',
+    facecolor='white',
+    edgecolor='black',
+    alpha=0.95,
+)
+    
 ANNOTATION_ARROW_STYLE = dict(arrowstyle='->', color='black', lw=1.5)
+X_MAX_SECONDS = 22000
+SECONDS_PER_MINUTE = 60
+X_TICK_MINUTES = 40
 
 # ================= 辅助函数 =================
+
+def format_time_to_min(value: float, _position: int) -> str:
+    return f"{value:.0f}"
 
 def format_tick_to_k(value: float, _position: int) -> str:
     abs_value = abs(value)
@@ -57,6 +82,13 @@ def format_tick_to_k(value: float, _position: int) -> str:
             return f"{int(value_k)}k"
         return f"{value_k:.1f}k"
     return f"{value:g}"
+
+def format_panel_tick(value: float) -> str:
+    if abs(value) >= 10:
+        return f"{value:.0f}"
+    if abs(value) >= 1:
+        return f"{value:.1f}"
+    return f"{value:.2f}"
 
 def load_data(network: str) -> pd.DataFrame:
     filename = f"total_handled_num_{network}.csv"
@@ -83,7 +115,7 @@ def plot_throughput_stability(network: str, out_dir: str):
     
     plt.rcParams.update({
         'font.family': 'sans-serif', 
-        'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'font.sans-serif': ['DejaVu Sans', 'Arial'],
         'axes.unicode_minus': False,
         'axes.labelsize': AXIS_LABEL_SIZE,
         'xtick.labelsize': TICK_LABEL_SIZE,
@@ -103,186 +135,268 @@ def plot_throughput_stability(network: str, out_dir: str):
     bios_val = 550 if network == 'pow' else 0
 
     mask = df_tps['time'] > bios_val
-    x_vals = df_tps.loc[mask, 'time'] - bios_val
-    x_label = "Time (s)"
+    x_vals = (df_tps.loc[mask, 'time'] - bios_val) / SECONDS_PER_MINUTE
+    x_label = "Time (min)"
+    legend_handles = None
+    legend_labels = None
+    x_label_font_size = AXIS_LABEL_SIZE
+    legend_font_size = LEGEND_FONT_SIZE
+
+    completion_indices = {}
+    if len(x_vals) > 0:
+        for key in PROTOCOLS.keys():
+            if key not in df.columns:
+                continue
+            col_data = df.loc[mask, key].to_numpy()
+            if col_data.size == 0:
+                continue
+            max_val = col_data.max()
+            reach_max_indices = np.where(col_data >= max_val - 1)[0]
+            if reach_max_indices.size > 0:
+                completion_indices[key] = int(reach_max_indices[0])
 
     # ---------------------------------------------------------
-    # 场景 A: PoW (纵向断轴 - 上下分割)
+    # 场景 A: PoW (箱线图)
     # ---------------------------------------------------------
     if network == 'pow':
-        fig, (ax1, ax2) = plt.subplots(
-            2, 1, sharex=True, figsize=DEFAULT_FIGSIZE,
-            gridspec_kw={'height_ratios': [1, 6]}
+        protocols_present = [k for k in PROTOCOLS.keys() if k in df.columns]
+        keys_used = []
+        data_list = []
+        labels = []
+        colors = []
+
+        if df.loc[mask].empty:
+            print(f"   [WARN] No data after bios cut for {network}")
+            return
+
+        df_masked = df.loc[mask].copy().reset_index(drop=True)
+        df_masked['minute_bin'] = ((df_masked['time'] - bios_val) // SECONDS_PER_MINUTE).astype(int)
+
+        for key in protocols_present:
+            key_df = df_masked
+            if key in completion_indices:
+                stop_idx = completion_indices[key]
+                key_df = df_masked.iloc[:stop_idx + 1].copy()
+
+            grp = key_df.groupby('minute_bin')[key]
+            diff_per_min = grp.last() - grp.first()
+            active_diff = diff_per_min[diff_per_min > 0]
+            used_diff = active_diff if len(active_diff) > 0 else diff_per_min
+            tps_per_min = (used_diff / SECONDS_PER_MINUTE).to_numpy()
+            tps_per_min = tps_per_min[np.isfinite(tps_per_min) & (tps_per_min > 0)]
+            if tps_per_min.size == 0:
+                continue
+            keys_used.append(key)
+            data_list.append(tps_per_min)
+            labels.append(PROTOCOLS[key]['label'])
+            colors.append(PROTOCOLS[key]['color'])
+
+        if len(data_list) == 0:
+            print(f"   [WARN] No protocol data for {network}")
+            return
+
+        fig, axes = plt.subplots(
+            len(data_list),
+            1,
+            figsize=DEFAULT_FIGSIZE,
+            sharey=False,
+            gridspec_kw={'hspace': 0.62},
         )
-        # 还原绘图逻辑
-        for key, config in PROTOCOLS.items():
-            if key in df_tps.columns:
-                raw_tps = df_tps.loc[mask, key]
-                # 还原：此处可根据需要保留 rolling 或直接 raw
-                rolling_mean = raw_tps 
-                
-                zorder = 10 if key == 'committee' else 1
-                alpha = 0.9 if key == 'committee' else 0.7
-                lw = 3.0
+        axes = np.atleast_1d(axes)
 
-                ax1.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
-                         linewidth=lw, alpha=alpha, zorder=zorder)
-                ax2.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
-                         linewidth=lw, alpha=alpha, zorder=zorder)
+        for idx, (ax, label, color, vals) in enumerate(zip(axes, labels, colors, data_list)):
+            bplot = ax.boxplot(
+                [vals],
+                vert=False,
+                patch_artist=True,
+                tick_labels=[""],
+                showfliers=False,
+                whis=(10, 90),
+                showmeans=True,
+                widths=0.75,
+                meanprops=dict(marker='D', markerfacecolor='white', markeredgecolor='black', markersize=4),
+                medianprops=dict(color='black', linewidth=1.6),
+                boxprops=dict(linewidth=1.2),
+                whiskerprops=dict(linewidth=1.2),
+                capprops=dict(linewidth=1.2),
+                flierprops=dict(marker='o', markersize=4, markeredgecolor='gray', alpha=0.8)
+            )
+            for patch in bplot['boxes']:
+                patch.set_facecolor(color)
+                patch.set_alpha(0.65)
 
-        ax1.set_ylim(250, 1000)
-        ax2.set_ylim(-2, 250)
-        ax2.set_xlim(left=0, right=22000)
+            x_min, x_max = np.nanpercentile(vals, [10, 90])
+            x_min = float(x_min)
+            x_max = float(x_max)
+            if abs(x_max - x_min) < 1e-9:
+                x_min = float(np.nanmin(vals))
+                x_max = float(np.nanmax(vals))
+            x_span = max(x_max - x_min, max(abs(x_max), 1.0) * 0.04)
+            x_left = max(0, x_min - x_span * 0.12)
+            x_right = x_max + x_span * 0.12
+            tick_values = np.linspace(x_left, x_right, 4)
+            ax.set_xlim(x_left, x_right)
+            ax.set_xticks(tick_values)
+            ax.set_xticklabels([format_panel_tick(v) for v in tick_values])
+            ax.set_ylabel(label, fontsize=POW_PANEL_TITLE_SIZE, rotation=0, labelpad=58, va='center')
+            ax.tick_params(axis='x', labelsize=POW_PANEL_TICK_LABEL_SIZE)
+            ax.tick_params(axis='y', left=False, labelleft=False)
+            ax.grid(True, axis='x', linestyle='--', alpha=0.45)
 
-        ax1.spines['bottom'].set_visible(False)
-        ax2.spines['top'].set_visible(False)
-        ax1.tick_params(labeltop=False, bottom=False)
-        ax2.xaxis.tick_bottom()
+        fig.text(0.5, 0.04, "Throughput (TPS)", ha='center', va='center', fontsize=AXIS_LABEL_SIZE)
 
-        # 断轴标记
-        d = .015 
-        kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
-        ax1.plot((-d, +d), (-d, +d), **kwargs)        
-        ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)  
-        kwargs.update(transform=ax2.transAxes)
-        ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)  
-        ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+        fig.subplots_adjust(**POW_BOXPLOT_MARGINS)
 
-        ax2.set_ylabel("Throughput (TPS)")
-        ax2.yaxis.set_label_coords(-0.08, 0.5, transform=ax2.transAxes)
-        ax1.grid(True)
-        ax2.grid(True)
-        ax2.xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-        
-        # 调整布局，为顶部的全局图例腾出空间
-        fig.subplots_adjust(hspace=0.05, **FIGURE_MARGINS)
+        legend_handles = []
+        legend_labels = []
+        x_label = ""
+        x_label_font_size = AXIS_LABEL_SIZE
 
     # ---------------------------------------------------------
     # 场景 B: PoS (横向断轴 - 左右分割)
     # ---------------------------------------------------------
     else:
-        fig, (ax1, ax2) = plt.subplots(
-            1, 2, sharey=True, figsize=DEFAULT_FIGSIZE,
-            gridspec_kw={'width_ratios': [4, 1]}
-        )
+        fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        x_label = ""
+        x_label_font_size = POS_AXIS_LABEL_SIZE
+        legend_font_size = POS_LEGEND_FONT_SIZE
+
+        completion_points = {}
         for key, config in PROTOCOLS.items():
             if key in df_tps.columns:
-                raw_tps = df_tps.loc[mask, key]
-                rolling_mean = raw_tps.rolling(window=20, min_periods=1).mean()
+                raw_tps = df_tps.loc[mask, key].rolling(window=20, min_periods=1).mean().to_numpy()
+                x_arr = x_vals.to_numpy()
+
+                if key in completion_indices:
+                    stop_idx = completion_indices[key]
+                    x_plot = x_arr[:stop_idx + 1]
+                    y_plot = raw_tps[:stop_idx + 1]
+                else:
+                    x_plot = x_arr
+                    y_plot = raw_tps
                 
                 zorder = 10 if key == 'committee' else 1
                 alpha = 0.9 if key == 'committee' else 0.7
-                lw = 3.0
-                
-                ax1.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
-                         linewidth=lw, alpha=alpha, zorder=zorder)
-                ax2.plot(x_vals, rolling_mean, label=config['label'], color=config['color'],
-                         linewidth=lw, alpha=alpha, zorder=zorder)
+                lw = POS_LINE_WIDTH_FAST if key == 'committee' else POS_LINE_WIDTH_BASELINE
 
+                ax1.plot(
+                    x_plot,
+                    y_plot,
+                    label=config['label'],
+                    color=config['color'],
+                    linewidth=lw,
+                    alpha=alpha,
+                    zorder=zorder,
+                )
 
-        # 为每个协议添加"处理完成"标注
-        # 预先计算每个协议完成处理的时间点（累计值达到最大值）
-        completion_times = {}
-        for key in PROTOCOLS.keys():
-            if key in df.columns:
-                col_data = df.loc[mask, key].to_numpy()
-                max_val = col_data.max()
-                reach_max_indices = np.where(col_data >= max_val - 1)[0]
-                if reach_max_indices.size > 0:
-                    completion_times[key] = x_vals.to_numpy()[reach_max_indices[0]]
+                if len(x_plot) > 0:
+                    completion_points[key] = (x_plot[-1], y_plot[-1])
 
-        # 保留 5 个箭头，但指向同一个共享文本框的不同位置
-        shared_box_pos   = (0.40, 0.68)
-        shared_box_anchor_points = {
-            'committee': (0.37, 0.71),
-            'daon': (0.39, 0.65),
-            'seenfeed': (0.44, 0.65),
-            'decentruth': (0.50, 0.65),
-            'deepthought': (0.53, 0.65),
+        ax1.set_xlim(0, X_MAX_SECONDS / SECONDS_PER_MINUTE)
+        ax1.set_xlabel("Time (min)", fontsize=POS_AXIS_LABEL_SIZE, labelpad=8)
+        ax1.set_ylabel("Throughput (TPS)", fontsize=POS_AXIS_LABEL_SIZE)
+        ax1.xaxis.set_major_locator(MultipleLocator(X_TICK_MINUTES))
+        ax1.xaxis.set_major_formatter(FuncFormatter(format_time_to_min))
+        ax1.tick_params(axis='both', labelsize=POS_TICK_LABEL_SIZE)
+        ax1.grid(True)
+
+        # 仅保留结束点的竖直向下线（按用户要求）
+        for key, (x0, y0) in completion_points.items():
+            line_color = PROTOCOLS[key]['color'] if key in PROTOCOLS else 'black'
+            ax1.vlines(
+                x=x0,
+                ymin=0,
+                ymax=y0,
+                colors=line_color,
+                linewidth=POS_VLINE_WIDTH,
+                alpha=0.95,
+                zorder=6,
+            )
+
+        # 恢复说明框与箭头（保持原样）
+        box_pos = (0.45, 0.64)
+        box_anchor_points = {
+            'committee': (0.46, 0.67),
+            'deepthought': (0.44, 0.77),
+            'seenfeed': (0.42, 0.70),
+            'decentruth': (0.46, 0.70),
+            'daon': (0.35, 0.74),
         }
         fig.text(
-            shared_box_pos[0],
-            shared_box_pos[1],
+            box_pos[0],
+            box_pos[1],
             ANNOTATION_TEXT,
             transform=fig.transFigure,
-            fontsize=ANNOTATION_FONT_SIZE,
+            fontsize=POS_ANNOTATION_FONT_SIZE,
             color=ANNOTATION_TEXT_COLOR,
             ha='center',
             va='center',
-            bbox=ANNOTATION_BOX_STYLE,
+            bbox=POS_ANNOTATION_BOX_STYLE,
         )
 
-        for key in PROTOCOLS.keys():
-            if key in completion_times:
-                x0 = completion_times[key]
-                x_arr = x_vals.to_numpy()
-                idx = np.argmin(np.abs(x_arr - x0))
-                y0 = df_tps.loc[mask, key].rolling(window=20, min_periods=1).mean().to_numpy()[idx]
-                target_ax = ax1 if x0 <= 22000 else ax2
-                target_point = shared_box_anchor_points.get(key, shared_box_pos)
+        # 仅保留一个结束圈注与一个箭头（优先 FastOracle）
+        selected_key = 'committee' if 'committee' in completion_points else (next(iter(completion_points)) if completion_points else None)
+        if selected_key is not None:
+            x0, y0 = completion_points[selected_key]
+            edge_color = PROTOCOLS[selected_key]['color'] if selected_key in PROTOCOLS else 'black'
+            ax1.scatter(
+                [x0], [y0],
+                s=90,
+                facecolors='none',
+                edgecolors='black',
+                linewidths=1.4,
+                zorder=20,
+            )
+            ax1.scatter(
+                [x0], [y0],
+                s=24,
+                c=edge_color,
+                marker='o',
+                linewidths=0,
+                zorder=21,
+            )
 
-                arrow = ConnectionPatch(
-                    xyA=(x0, y0),
-                    coordsA='data',
-                    axesA=target_ax,
-                    xyB=target_point,
-                    coordsB=fig.transFigure,
-                    arrowstyle='->',
-                    color='black',
-                    lw=1.5,
-                    shrinkB=4,
-                )
-                fig.add_artist(arrow)
+            arrow_target = box_anchor_points.get(selected_key, box_pos)
+            arrow = ConnectionPatch(
+                xyA=(x0, y0),
+                coordsA='data',
+                axesA=ax1,
+                xyB=arrow_target,
+                coordsB=fig.transFigure,
+                arrowstyle='<-',
+                color='black',
+                lw=1.0,
+                shrinkB=4,
+            )
+            fig.add_artist(arrow)
 
-        ax1.set_xlim(0, 22000)
-        if len(x_vals) > 0:
-            total_time = x_vals.max()
-            if total_time > 27000:
-                ax2.set_xlim(total_time - 5000, total_time+2000)
-
-        ax1.spines['right'].set_visible(False)
-        ax2.spines['left'].set_visible(False)
-        ax1.tick_params(labelright=False, right=False)
-        ax2.tick_params(labelleft=False, left=False)   
-        ax2.yaxis.tick_right() 
-
-        d = .015 
-        kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
-        ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs) 
-        ax1.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs) 
-        kwargs.update(transform=ax2.transAxes)
-        ax2.plot((-d, +d), (-d, +d), **kwargs) 
-        ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs) 
-
-        ax1.set_ylabel("Throughput (TPS)")
-        ax1.grid(True)
-        ax2.grid(True)
-        ax1.xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-        ax2.xaxis.set_major_formatter(FuncFormatter(format_tick_to_k))
-        
-        fig.subplots_adjust(wspace=0.05, **FIGURE_MARGINS)
+        fig.subplots_adjust(**POS_FIGURE_MARGINS)
 
     # ================= 统一图例修改 (全局右上角) =================
     
     # 从第一个子图中获取线条对象和标签
-    handles, labels = ax1.get_legend_handles_labels()
+    if legend_handles is None or legend_labels is None:
+        handles, labels = ax1.get_legend_handles_labels()
+    else:
+        handles, labels = legend_handles, legend_labels
     
     # 恢复为全局 fig.legend，并将位置微调向右
-    fig.legend(
-        handles, 
-        labels, 
-        loc='upper right', 
-        bbox_to_anchor=(0.98, 0.88), # 横轴从0.80改为了0.87，向右移动一点
-        ncol=1, 
-        fontsize=LEGEND_FONT_SIZE,
-        frameon=True,
-        edgecolor='gray',
-        facecolor='white',
-        framealpha=0.8
-    )
+    if handles and labels:
+        fig.legend(
+            handles, 
+            labels, 
+            loc='upper right', 
+            bbox_to_anchor=(0.985, 0.93),
+            ncol=1, 
+            fontsize=legend_font_size,
+            frameon=True,
+            edgecolor='gray',
+            facecolor='white',
+            framealpha=0.8
+        )
 
     # 通用标签设置
-    fig.text(0.5, 0.02, x_label, ha='center', va='center', fontsize=AXIS_LABEL_SIZE)
+    fig.text(0.5, 0.02, x_label, ha='center', va='center', fontsize=x_label_font_size)
     
     save_filename = f"throughput_stability_{network}.pdf"
     save_path = os.path.join(out_dir, save_filename)

@@ -7,8 +7,7 @@ from pathlib import Path
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parent
-    scripts = [
-        "plot_1_stacked_bars.py",
+    scripts = [ 
         "plot_2_queue.py",
         "plot_3_throught.py",
         "plot_4_certifycate.py",

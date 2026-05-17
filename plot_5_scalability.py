@@ -22,15 +22,15 @@ SCENARIOS = {
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee":  {"label": "FastOracle", "color": "#1f77b4", "marker": "o"},
-    "daon":       {"label": "Daon.",      "color": "#ff7f0e", "marker": "s"},
-    "decentruth": {"label": "Decen.",      "color": "#2ca02c", "marker": "^"},
-    "seenfeed":   {"label": "Seen.",      "color": "#d62728", "marker": "D"},
+    "daon":       {"label": "DAON",       "color": "#ff7f0e", "marker": "s"},
+    "decentruth": {"label": "DECEN.",     "color": "#2ca02c", "marker": "^"},
+    "seenfeed":   {"label": "Sen.",       "color": "#d62728", "marker": "D"},
     "deepthought":{"label": "Deep.",      "color": "#9467bd", "marker": "v"},
 }
 
-AXIS_LABEL_SIZE = 44
-TICK_LABEL_SIZE = 38
-LEGEND_FONT_SIZE = 35
+AXIS_LABEL_SIZE = 32
+TICK_LABEL_SIZE = 32
+LEGEND_FONT_SIZE = 32
 DEFAULT_FIGSIZE = (12, 9)
 
 # 格式化函数
@@ -83,9 +83,8 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
 
     # --- 坐标轴格式化 ---
     ax.set_xlabel("Processed Request Number", fontsize=AXIS_LABEL_SIZE, labelpad=15)
-    ax.set_ylabel("Processing Time (s)", fontsize=AXIS_LABEL_SIZE, labelpad=15)
-    
-    # X轴设为 k 单位
+    ax.set_ylabel("Cumulative Process Latency", fontsize=AXIS_LABEL_SIZE*0.8, labelpad=15)
+    # X轴设为 k 单
     ax.xaxis.set_major_formatter(FuncFormatter(k_formatter))
     
     # 【修改 4】Y轴刻度优化，使用线性刻度
@@ -131,6 +130,4 @@ if __name__ == "__main__":
             df_in = pd.read_csv(path, index_col=0)
             plot_scalability_optimized(df_in, name, target_dir, global_max_x)
 
-    print(f"\n[Done] Y轴已优化。PoW采用对数刻度显示对比，PoS保持线性显示。")
-
-
+    print(f"\n[Done] Y轴标签已更新为 cumulative process latency。")

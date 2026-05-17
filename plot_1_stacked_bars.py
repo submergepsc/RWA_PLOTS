@@ -19,9 +19,9 @@ PLOT_TYPE_NAME = "01_breakdown"
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "FastOracle", "color": "#1f77b4"},
     "deepthought": {"label": "Deep.", "color": "#9467bd"},
-    "seenfeed": {"label": "Seen.", "color": "#d62728"},
-    "decentruth": {"label": "Decen.", "color": "#2ca02c"},
-    "daon": {"label": "Daon.", "color": "#ff7f0e"},
+    "seenfeed": {"label": "Sen.", "color": "#d62728"},
+    "decentruth": {"label": "DECEN.", "color": "#2ca02c"},
+    "daon": {"label": "DAON", "color": "#ff7f0e"},
 }
 
 SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.05}

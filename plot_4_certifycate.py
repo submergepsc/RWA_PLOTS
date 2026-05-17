@@ -2,17 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Plot 5: RWA-FastOracle 证书生成时间 CDF (Certificate Generation CDF)
-对应文件夹: figures/05_certificate/
 说明: 
-1. 读取 certif_gen_{network}.csv 文件。
-2. 绘制 CDF 及其右侧延伸填充。
-3. 【调整绘图顺序】先画表现较差的协议(背景)，最后画 Ours(前景)，防止阴影遮挡。
-4. 【调整图例顺序】强制图例显示顺序为 Ours 在第一位。
+1. 彻底修复箭头坐标系飞出的 bug：拆分文本和箭头，全量使用 data 坐标系绝对定位。
 """
 
 import os
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 import pandas as pd
 import numpy as np
 from typing import Dict
@@ -22,25 +18,30 @@ from typing import Dict
 DATA_DIR = "." 
 FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "04_certificate"
+PEAK_ANNOTATION_ARROW_KEY = "committee"
 
-# 定义协议配置 (这是我们希望在 Legend 中显示的顺序: Ours 第一)
+# 定义协议配置
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#1f77b4"},
-    "deepthought": {"label": "Deep.", "color": "#9467bd"},
-    "seenfeed": {"label": "Seen.", "color": "#d62728"},
-    "decentruth": {"label": "Decen.", "color": "#2ca02c"},
-    "daon": {"label": "Daon.", "color": "#ff7f0e"},
+    "committee": {"label": "FastOracle", "color": "#1f77b4", "marker": "o"},
+    "deepthought": {"label": "Deep.", "color": "#9467bd", "marker": "v"},
+    "seenfeed": {"label": "Sen.", "color": "#d62728", "marker": "D"},
+    "decentruth": {"label": "DECEN.", "color": "#2ca02c", "marker": "^"},
+    "daon": {"label": "DAON", "color": "#ff7f0e", "marker": "s"},
 }
 
-# 样式配置
-AXIS_LABEL_SIZE = 44
-TICK_LABEL_SIZE = 40
-LEGEND_FONT_SIZE = 38
-DEFAULT_FIGSIZE = (12, 9)
-SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.05}
-FIGURE_MARGINS = dict(left=0.18, right=0.97, bottom=0.18, top=0.95)
+# 【关键修改】：适合单栏排版的尺寸与字号
+AXIS_LABEL_SIZE = 24  # 坐标轴标题
+TICK_LABEL_SIZE = 20  # 坐标轴数字
+LEGEND_FONT_SIZE = 18 # 图例字号
+DEFAULT_FIGSIZE = (8, 6) # 画布尺寸：8宽, 6高 (经典的 4:3 比例)
 
-# ================= 辅助函数 =================
+SAVEFIG_KWARGS = {}
+FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.93)
+MARKER_SIZE_OURS = 24
+MARKER_SIZE_OTHERS = 18
+PLATEAU_MARKERS_PER_SEGMENT = 4
+Y_AXIS_EXTRA_PADDING = 1.22
+
 
 def load_data(network: str) -> pd.DataFrame:
     filename = f"certif_gen_{network}.csv"
@@ -49,14 +50,42 @@ def load_data(network: str) -> pd.DataFrame:
         raise FileNotFoundError(f"[Error] Data file not found: {path}")
     return pd.read_csv(path)
 
+def get_marker_indices(total_points: int, num_markers: int = 10):
+    if total_points <= 0:
+        return []
+    if total_points <= num_markers:
+        return list(range(total_points))
+    return np.linspace(0, total_points - 1, num_markers, dtype=int).tolist()
+
+def compute_shared_y_top(networks):
+    max_certs = 1
+    for net in networks:
+        try:
+            df = load_data(net)
+        except FileNotFoundError:
+            continue
+        for key in PROTOCOLS.keys():
+            if key in df.columns:
+                max_certs = max(max_certs, int(df[key].dropna().shape[0]))
+    return max_certs * 1.05
+
+def format_scientific(value: float, _position: int) -> str:
+    if abs(value) >= 1000:
+        mantissa, exponent = f"{value:.1e}".split("e")
+        return f"{float(mantissa):g}e{int(exponent)}"
+    return f"{value:g}"
+
+def format_integer(value: float, _position: int) -> str:
+    return f"{int(value):d}"
+
 # ================= 绘图核心逻辑 =================
 
-def plot_certificate_cdf(network: str, out_dir: str):
-    print(f"-> Processing {network.upper()} certificate CDF (Optimized Order)...")
+def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None):
+    print(f"-> Processing {network.upper()} certificate CDF (Hardcoded Coordinates)...")
     
     plt.rcParams.update({
         'font.family': 'sans-serif', 
-        'font.sans-serif': ['Arial', 'DejaVu Sans'],
+        'font.sans-serif': ['DejaVu Sans', 'Arial'],
         'axes.unicode_minus': False,
         'font.size': 14,
         'axes.labelsize': AXIS_LABEL_SIZE,
@@ -76,8 +105,9 @@ def plot_certificate_cdf(network: str, out_dir: str):
         return
 
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
+    peak_points = {}
+    plateau_segments = []
     
-    # --- 1. 计算全局最大时间 (用于右边界) ---
     max_times = []
     for key in PROTOCOLS.keys():
         if key in df.columns:
@@ -91,10 +121,7 @@ def plot_certificate_cdf(network: str, out_dir: str):
     
     global_max_time = max(max_times) * 1.02
     
-    # --- 2. 确定绘图顺序 (Drawing Order) ---
-    # 我们希望最后画 'committee' (Ours)，这样它的线条和阴影在最上层
-    # 因此我们将 PROTOCOLS 列表反转来进行绘图遍历
-    draw_order = list(PROTOCOLS.items())  [::-1]
+    draw_order = list(PROTOCOLS.items())[::-1]
 
     for key, config in draw_order:
         if key in df.columns:
@@ -105,46 +132,165 @@ def plot_certificate_cdf(network: str, out_dir: str):
             sorted_data = np.sort(data_col)
             yvals = np.arange(1, len(sorted_data) + 1)
             
-            # 构造延伸数据点
-            x_extended = np.concatenate(([0], sorted_data, [global_max_time]))
-            y_extended = np.concatenate(([0], yvals, [len(sorted_data)]))
+            # Draw each protocol up to its own completion time first.
+            # The shared top plateau is rendered in colored segments later.
+            x_extended = np.concatenate(([0], sorted_data))
+            y_extended = np.concatenate(([0], yvals))
             
             lw = 4.0 if key == 'committee' else 2.5
             alpha_line = 1.0 if key == 'committee' else 0.8
-            # 虽然调整了绘图顺序，保留 zorder 也是双重保险
             zorder = 10 if key == 'committee' else 2
+            marker_idx = get_marker_indices(len(x_extended), num_markers=10)
             
-            # 绘制线条
             ax.plot(x_extended, y_extended, label=config['label'], color=config['color'], 
-                    linewidth=lw, alpha=alpha_line, zorder=zorder)
+                    linewidth=lw, alpha=alpha_line, zorder=zorder,
+                    marker=config['marker'], markersize=MARKER_SIZE_OURS if key == 'committee' else MARKER_SIZE_OTHERS,
+                    markevery=marker_idx, markeredgewidth=0.8, markeredgecolor='white')
 
-    # --- 3. 布局与图例重排序 (Legend Reordering) ---
+            peak_points[key] = (float(sorted_data[-1]), float(len(sorted_data)))
+            plateau_segments.append(
+                {
+                    "key": key,
+                    "x_end": float(sorted_data[-1]),
+                    "y_end": float(len(sorted_data)),
+                    "color": config["color"],
+                    "zorder": zorder,
+                    "lw": lw,
+                    "alpha": alpha_line,
+                    "marker": config["marker"],
+                }
+            )
+
+    # Render the final horizontal plateau as colored segments by completion order.
+    # Each interval [x_i, x_{i+1}] uses protocol i's final color.
+    if plateau_segments:
+        plateau_segments.sort(key=lambda item: item["x_end"])
+        for idx, seg in enumerate(plateau_segments):
+            x_start = seg["x_end"]
+            x_stop = plateau_segments[idx + 1]["x_end"] if idx + 1 < len(plateau_segments) else global_max_time
+            if x_stop > x_start:
+                x_seg = np.linspace(x_start, x_stop, PLATEAU_MARKERS_PER_SEGMENT + 2)
+                y_seg = np.full_like(x_seg, seg["y_end"], dtype=float)
+                marker_idx = get_marker_indices(len(x_seg), num_markers=PLATEAU_MARKERS_PER_SEGMENT)
+                marker_size = MARKER_SIZE_OURS if seg["key"] == "committee" else MARKER_SIZE_OTHERS
+                ax.plot(
+                    x_seg,
+                    y_seg,
+                    color=seg["color"],
+                    linewidth=seg["lw"],
+                    alpha=seg["alpha"],
+                    zorder=seg["zorder"],
+                    marker=seg["marker"],
+                    markersize=marker_size,
+                    markevery=marker_idx,
+                    markeredgewidth=0.8,
+                    markeredgecolor='white',
+                )
+
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Number of Certificates")
     ax.set_xlim(left=0, right=global_max_time)
+    ax.xaxis.set_major_locator(MultipleLocator(5000))
+    ax.xaxis.set_major_formatter(FuncFormatter(format_scientific))
+    ax.yaxis.set_major_formatter(FuncFormatter(format_scientific))
     
-    # 动态 y_lim based on max certificates generated across all protocols
     max_certs = max([len(df[key].dropna()) for key in PROTOCOLS.keys() if key in df.columns]) if not df.empty else 1
-    ax.set_ylim(bottom=0, top=max_certs * 1.05)
+    y_top_base = shared_y_top if shared_y_top is not None else (max_certs * 1.05)
+    y_top = y_top_base * Y_AXIS_EXTRA_PADDING
+    ax.set_ylim(bottom=0, top=y_top)
     
     ax.grid(True, linewidth=1.5)
+    ax.yaxis.set_major_locator(MultipleLocator(500))
+    ax.yaxis.set_major_formatter(FuncFormatter(format_integer))
+    ax.tick_params(axis='y', which='major', direction='out', length=7, width=1.4, pad=6)
 
-    # 获取当前图上的所有 handles 和 labels (此时顺序是反的，因为我们反向遍历了)
     handles, labels = ax.get_legend_handles_labels()
-    
-    # 创建一个字典方便查找
     by_label = dict(zip(labels, handles))
-    
-    # 按照 PROTOCOLS 定义的原始顺序 (Ours 第一) 重新构建列表
     ordered_labels = [cfg['label'] for cfg in PROTOCOLS.values() if cfg['label'] in by_label]
     ordered_handles = [by_label[l] for l in ordered_labels]
-
-    # 显示重排序后的图例
     ax.legend(ordered_handles, ordered_labels, loc='lower right')
+
+    def line_rectangle_edge(start_disp, end_disp, bbox):
+        sx, sy = start_disp
+        ex, ey = end_disp
+        dx = ex - sx
+        dy = ey - sy
+        candidates = []
+
+        if abs(dx) > 1e-9:
+            for x_edge in (bbox.x0, bbox.x1):
+                t = (x_edge - sx) / dx
+                y_edge = sy + t * dy
+                if t > 0 and bbox.y0 <= y_edge <= bbox.y1:
+                    candidates.append((t, (x_edge, y_edge)))
+
+        if abs(dy) > 1e-9:
+            for y_edge in (bbox.y0, bbox.y1):
+                t = (y_edge - sy) / dy
+                x_edge = sx + t * dx
+                if t > 0 and bbox.x0 <= x_edge <= bbox.x1:
+                    candidates.append((t, (x_edge, y_edge)))
+
+        if not candidates:
+            return start_disp
+        return min(candidates, key=lambda item: item[0])[1]
+
+    # ================= 【修复核心区】绝对数值定位 =================
+    if peak_points:
+        # 绘制空心大圆圈强调
+        for key, (x0, y0) in peak_points.items():
+            ax.scatter([x0], [y0], s=420, facecolors='none', edgecolors='black', linewidths=1.5, zorder=20)
+
+        # 获取 FastOracle 的数据点作为起点 (x0, y0)
+        arrow_key = PEAK_ANNOTATION_ARROW_KEY if PEAK_ANNOTATION_ARROW_KEY in peak_points else next(iter(peak_points))
+        x0, y0 = peak_points[arrow_key]
+
+        # 计算文本框的绝对坐标 (全用 data 坐标系)，并强制限制在坐标轴内部。
+        x_text_data = np.clip(global_max_time * 0.52, 0.10 * global_max_time, 0.90 * global_max_time)
+        # Put the text box into the enlarged upper blank area.
+        y_text_data = np.clip(y_top * 0.92, 0.20 * y_top, 0.97 * y_top)
+
+        # 1. 独立放置文本框
+        text_artist = ax.text(
+            x=x_text_data, 
+            y=y_text_data,
+            s="Peak certificates reached.",
+            fontsize=18,
+            color='black',
+            ha='center',
+            va='center',
+            clip_on=True,
+            bbox=dict(boxstyle='round,pad=0.55', facecolor='white', edgecolor='black', alpha=0.92)
+        )
+
+        # 2. Draw the arrow from the real text-box edge to the peak point.
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        text_bbox = text_artist.get_window_extent(renderer=renderer)
+        text_center_disp = ax.transData.transform((x_text_data, y_text_data))
+        peak_disp = ax.transData.transform((x0, y0))
+        arrow_start_disp = line_rectangle_edge(text_center_disp, peak_disp, text_bbox)
+        arrow_start_data = ax.transData.inverted().transform(arrow_start_disp)
+        ax.annotate(
+            text="", 
+            xy=(x0, y0),                   # 终点 (数据点)
+            xycoords='data',
+            xytext=arrow_start_data,
+            textcoords='data',
+            annotation_clip=True,
+            arrowprops=dict(
+                arrowstyle='->',
+                color='#d62728',
+                lw=2.0,
+                mutation_scale=14,
+                shrinkA=0,
+                shrinkB=2                  # B端缩进：碰到边框即止
+            )
+        )
     
     fig.subplots_adjust(**FIGURE_MARGINS)
     
-    save_filename = f"certificate_cdf_{network}.pdf" # Keep filename constant to avoid breaking tex references
+    save_filename = f"certificate_cdf_{network}.pdf" 
     save_path = os.path.join(out_dir, save_filename)
     fig.savefig(save_path, format="pdf", **SAVEFIG_KWARGS)
     print(f"   [OK] Saved: {save_path}")
@@ -157,10 +303,10 @@ if __name__ == "__main__":
     os.makedirs(target_dir, exist_ok=True)
     
     print(f"=== Starting Plotting Routine: {PLOT_TYPE_NAME} ===")
-    print(f"Target Directory: {target_dir}")
     
     networks = ['pos', 'pow']
+    shared_y_top = compute_shared_y_top(networks)
     for net in networks:
-        plot_certificate_cdf(net, target_dir)
+        plot_certificate_cdf(net, target_dir, shared_y_top=shared_y_top)
         
     print("=== Done ===")
