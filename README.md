@@ -1,47 +1,97 @@
-# Plot All 绘图文件结构说明
+# RWAExpResults 绘图与数据结构说明
 
-本文档说明 `run_all_plots.py` 当前串联的 4 个绘图脚本及其相关输入、输出和上游数据文件。
+本项目是 FastOracle/RWA 论文实验图的整理目录。当前有效工作流主要包括：
 
-## 运行入口
+1. 根目录 CSV 作为绘图输入。
+2. `plot_1_stacked_bars.py` 到 `plot_5_scalability.py` 生成论文图。
+3. `figures/` 保存生成的 PDF。
+4. `main.tex` 通过 `figure -> figures` 软链接引用这些 PDF。
 
-```text
-run_all_plots.py
-```
+本文只说明当前仍在使用的文件和数据链路。目录中还有一些历史脚本、调试图片、旧版输出、压缩包和临时目录，本文不把它们作为主流程的一部分。
 
-该脚本按顺序执行以下 4 个文件：
+## 快速运行
 
-```text
-plot_2_queue.py
-plot_3_throught.py
-plot_4_certifycate.py
-plot_5_scalability.py
-```
-
-推荐运行命令：
+项目 Python 环境在：
 
 ```bash
+.venv/bin/python
+```
+
+推荐使用：
+
+```bash
+MPLCONFIGDIR=/tmp/matplotlib-cache .venv/bin/python plot_1_stacked_bars.py
 MPLCONFIGDIR=/tmp/matplotlib-cache .venv/bin/python run_all_plots.py
 ```
 
-`MPLCONFIGDIR=/tmp/matplotlib-cache` 用于避免 Matplotlib 写入用户配置目录失败或反复重建缓存。
+说明：
 
-## 总体数据流
+- `plot_1_stacked_bars.py` 生成论文中的 latency breakdown 图。
+- `run_all_plots.py` 当前只串联运行 `plot_2_queue.py`、`plot_3_throught.py`、`plot_4_certifycate.py`、`plot_5_scalability.py`。
+- `MPLCONFIGDIR=/tmp/matplotlib-cache` 用来避免 Matplotlib 写入默认缓存目录失败。
 
-```text
-原始实验结果 CSV
-  -> 聚合后的根目录 CSV
-  -> plot_2 / plot_3 / plot_4 / plot_5
-  -> figures/02_queue
-     figures/03_throughput
-     figures/04_certificate
-     figures/05_scalability
+语法检查：
+
+```bash
+.venv/bin/python -m py_compile \
+  plot_1_stacked_bars.py \
+  plot_2_queue.py \
+  plot_3_throught.py \
+  plot_4_certifycate.py \
+  plot_5_scalability.py \
+  run_all_plots.py
 ```
 
-当前 4 个绘图脚本都从项目根目录读取 CSV，并把 PDF 写入 `figures/` 下对应子目录。
+## 当前核心文件结构
 
-## 方案列名与显示名
+```text
+RWAExpResults/
+├── main.tex
+├── main.pdf
+├── figure -> figures
+├── figures/
+│   ├── 01_breakdown/
+│   │   ├── stacked_breakdown_pos.pdf
+│   │   └── stacked_breakdown_pow.pdf
+│   ├── 02_queue/
+│   │   ├── queue_dynamics_pos.pdf
+│   │   └── queue_dynamics_pow.pdf
+│   ├── 03_throughput/
+│   │   ├── throughput_stability_pos.pdf
+│   │   └── throughput_stability_pow.pdf
+│   ├── 04_certificate/
+│   │   ├── certificate_cdf_pos.pdf
+│   │   └── certificate_cdf_pow.pdf
+│   └── 05_scalability/
+│       ├── pos_quantity_vs_time.pdf
+│       └── pow_quantity_vs_time.pdf
+├── plot_1_stacked_bars.py
+├── plot_2_queue.py
+├── plot_3_throught.py
+├── plot_4_certifycate.py
+├── plot_5_scalability.py
+├── run_all_plots.py
+├── searchTime_pos.csv
+├── searchTime_pow.csv
+├── consensusTime_pos.csv
+├── consensusTime_pow.csv
+├── onChainTime_pos.csv
+├── onChainTime_pow.csv
+├── total_q_len_pos.csv
+├── total_q_len_pow.csv
+├── total_handled_num_pos.csv
+├── total_handled_num_pow.csv
+├── certif_gen_pos.csv
+├── certif_gen_pow.csv
+├── gen_certif.py
+├── prepare_certif.py
+├── prepare.py
+└── certif_pos/
+```
 
-输入 CSV 中使用的列名：
+## 数据列名与图中显示名
+
+根目录 CSV 里使用内部方案列名：
 
 ```text
 committee
@@ -61,75 +111,160 @@ seenfeed     -> Sen.
 deepthought  -> Deep.
 ```
 
-注意：`certif_gen_pos.csv` 和 `certif_gen_pow.csv` 当前没有 `deepthought` 列，因此 `plot_4_certifycate.py` 的证书图只画 4 条曲线。
+注意：`certif_gen_pos.csv` 和 `certif_gen_pow.csv` 当前没有 `deepthought` 列，所以证书图只画 4 个方案。
 
-## 文件结构
+## 数据总流程
+
+当前绘图主要使用已经聚合好的根目录 CSV：
 
 ```text
-RWAExpResults/
-├── run_all_plots.py
-├── plot_2_queue.py
-├── plot_3_throught.py
-├── plot_4_certifycate.py
-├── plot_5_scalability.py
-├── total_q_len_pos.csv
-├── total_q_len_pow.csv
-├── total_handled_num_pos.csv
-├── total_handled_num_pow.csv
-├── certif_gen_pos.csv
-├── certif_gen_pow.csv
-├── figures/
-│   ├── 02_queue/
-│   │   ├── queue_dynamics_pos.pdf
-│   │   └── queue_dynamics_pow.pdf
-│   ├── 03_throughput/
-│   │   ├── throughput_stability_pos.pdf
-│   │   └── throughput_stability_pow.pdf
-│   ├── 04_certificate/
-│   │   ├── certificate_cdf_pos.pdf
-│   │   └── certificate_cdf_pow.pdf
-│   └── 05_scalability/
-│       ├── pos_quantity_vs_time.pdf
-│       └── pow_quantity_vs_time.pdf
-├── gen_certif.py
-├── prepare_certif.py
-├── prepare.py
-├── certif_pos/
-│   ├── committee.csv
-│   ├── daon.csv
-│   ├── decentruth.csv
-│   ├── deepthought.csv
-│   └── seenfeed.csv
-└── 暂时存放不用/
-    ├── results_committee/
-    ├── results_committee_pow/
-    ├── results_daon/
-    ├── results_daon_pow/
-    ├── results_decentruth/
-    ├── results_decentruth_pow/
-    ├── results_deepthought/
-    ├── results_deepthought_pow/
-    ├── results_seenfeed/
-    └── results_seenfeed_pow/
+实验原始结果
+  -> 聚合/整理脚本生成根目录 CSV
+  -> plot_1 ~ plot_5 读取根目录 CSV
+  -> figures/01_breakdown ~ figures/05_scalability 输出 PDF
+  -> main.tex 通过 figure/... 引用 PDF
 ```
 
-## 四个绘图脚本
+其中 `figure` 是指向 `figures` 的软链接：
 
-### 1. `plot_2_queue.py`
+```text
+figure -> figures
+```
 
-用途：绘制队列长度随时间变化的曲线图。
+因此脚本输出到 `figures/...` 后，`main.tex` 中的 `figure/...` 路径可以正常找到图片。
 
-输入：
+## 根目录 CSV 的用途
+
+### 阶段耗时 CSV
+
+```text
+searchTime_pos.csv
+searchTime_pow.csv
+consensusTime_pos.csv
+consensusTime_pow.csv
+onChainTime_pos.csv
+onChainTime_pow.csv
+```
+
+列结构：
+
+```text
+committee, seqId, daon, decentruth, seenfeed, deepthought
+```
+
+用途：
+
+- 被 `plot_1_stacked_bars.py` 读取。
+- 用来计算每个方案的平均 Search、Consensus、On-chain 时间。
+- 生成 `figures/01_breakdown/*.pdf`。
+
+其中时间值可能带单位，例如 `ms`、`s`、`ns`。`plot_1_stacked_bars.py` 里的 `clean_time_data()` 会把它们统一换算成秒。
+
+### 队列长度 CSV
 
 ```text
 total_q_len_pos.csv
 total_q_len_pow.csv
 ```
 
-输入列：
+列结构：
 
 ```text
 time, committee, daon, decentruth, seenfeed, deepthought
+```
+
+用途：
+
+- 被 `plot_2_queue.py` 读取。
+- `time` 会转换成分钟：`time_min = time / 60.0`。
+- 各方案列表示对应时间点的队列长度。
+- 生成 `figures/02_queue/queue_dynamics_pos.pdf` 和 `queue_dynamics_pow.pdf`。
+
+### 累计处理数量 CSV
+
+```text
+total_handled_num_pos.csv
+total_handled_num_pow.csv
+```
+
+列结构：
+
+```text
+time, committee, daon, decentruth, seenfeed, deepthought
+```
+
+用途一：
+
+- 被 `plot_3_throught.py` 读取。
+- 脚本用相邻时间点的累计处理数量差分计算吞吐量：
+
+```text
+TPS = handled_num.diff() / time.diff()
+```
+
+- 生成 `figures/03_throughput/throughput_stability_pos.pdf` 和 `throughput_stability_pow.pdf`。
+
+用途二：
+
+- 被 `plot_5_scalability.py` 读取。
+- 脚本把累计处理数量作为 x 轴，把行索引近似作为累计处理延迟。
+- 生成 `figures/05_scalability/pos_quantity_vs_time.pdf` 和 `pow_quantity_vs_time.pdf`。
+
+### 证书生成 CSV
+
+```text
+certif_gen_pos.csv
+certif_gen_pow.csv
+```
+
+列结构：
+
+```text
+committee, daon, decentruth, seenfeed
+```
+
+用途：
+
+- 被 `plot_4_certifycate.py` 读取。
+- 每列是一种方案的证书累计生成时间序列。
+- 脚本对每列排序后绘制累计证书数量曲线。
+- 生成 `figures/04_certificate/certificate_cdf_pos.pdf` 和 `certificate_cdf_pow.pdf`。
+
+## 绘图脚本说明
+
+### `plot_1_stacked_bars.py`
+
+输入：
+
+```text
+searchTime_pos.csv
+consensusTime_pos.csv
+onChainTime_pos.csv
+searchTime_pow.csv
+consensusTime_pow.csv
+onChainTime_pow.csv
+```
+
+输出：
+
+```text
+figures/01_breakdown/stacked_breakdown_pos.pdf
+figures/01_breakdown/stacked_breakdown_pow.pdf
+```
+
+功能：
+
+- 计算 Search、Consensus、On-chain 三个阶段的平均耗时。
+- 每个方案画一条横向堆叠柱。
+- PoW 图中因为数值跨度较大，脚本使用断轴布局。
+
+### `plot_2_queue.py`
+
+输入：
+
+```text
+total_q_len_pos.csv
+total_q_len_pow.csv
 ```
 
 输出：
@@ -139,27 +274,19 @@ figures/02_queue/queue_dynamics_pos.pdf
 figures/02_queue/queue_dynamics_pow.pdf
 ```
 
-图形特征：
+功能：
 
-- x 轴为 `Time (min)`，使用对数坐标。
-- y 轴为 `Queue Length`。
-- 当前 PDF 页面尺寸统一为 `576 x 432 pts`，用于和 plot3、plot4 三图并排。
+- 画队列长度随时间变化。
+- x 轴为分钟，使用 log scale。
+- 当前页面尺寸为 `8 x 6 in`，PDF 为 `576 x 432 pts`，用于和 plot3、plot4 三图并排。
 
-### 2. `plot_3_throught.py`
-
-用途：绘制吞吐量稳定性图。
+### `plot_3_throught.py`
 
 输入：
 
 ```text
 total_handled_num_pos.csv
 total_handled_num_pow.csv
-```
-
-输入列：
-
-```text
-time, committee, daon, decentruth, seenfeed, deepthought
 ```
 
 输出：
@@ -169,38 +296,21 @@ figures/03_throughput/throughput_stability_pos.pdf
 figures/03_throughput/throughput_stability_pow.pdf
 ```
 
-图形特征：
+功能：
 
-- PoS 图：时间序列吞吐曲线。
-- PoW 图：按方案分行的横向箱线图。
-- PoW 每个方案使用独立 x 轴范围，避免不同数量级互相挤压。
-- 当前 PDF 页面尺寸统一为 `576 x 432 pts`。
+- 从累计处理数量差分得到吞吐量。
+- PoS 输出时间序列吞吐曲线，并标注请求全部处理完成点。
+- PoW 输出按方案分行的横向箱线图。
+- PoW 中不同方案的 TPS 数量级差异较大，所以通过 `POW_AXIS_CONFIG` 为每行设置独立 x 轴范围和刻度。
+- 当前页面尺寸为 `8 x 6 in`，PDF 为 `576 x 432 pts`。
 
-PoW 当前固定刻度：
-
-```text
-FastOracle: 13, 33, 53, 72
-Deep.:      0.01, 0.04, 0.06, 0.09
-Sen.:       13, 14, 15
-DECEN.:     9.0, 9.6, 10, 11
-DAON:       0.00, 13, 25, 38
-```
-
-### 3. `plot_4_certifycate.py`
-
-用途：绘制证书生成数量随时间变化的 CDF/累计曲线。
+### `plot_4_certifycate.py`
 
 输入：
 
 ```text
 certif_gen_pos.csv
 certif_gen_pow.csv
-```
-
-输入列：
-
-```text
-committee, daon, decentruth, seenfeed
 ```
 
 输出：
@@ -210,28 +320,20 @@ figures/04_certificate/certificate_cdf_pos.pdf
 figures/04_certificate/certificate_cdf_pow.pdf
 ```
 
-图形特征：
+功能：
 
-- x 轴为 `Time (s)`，使用科学记数法刻度。
-- y 轴为 `Number of Certificates`。
-- 当前带有 `Peak certificates reached.` 标注框和箭头。
-- 当前 PDF 页面尺寸统一为 `576 x 432 pts`。
+- 画证书数量随时间累计增长的曲线。
+- x 轴是秒，使用科学记数法。
+- 标注 `Peak certificates reached.`，箭头从文本框真实边界连到 FastOracle 峰值点。
+- 当前页面尺寸为 `8 x 6 in`，PDF 为 `576 x 432 pts`。
 
-### 4. `plot_5_scalability.py`
-
-用途：绘制处理请求数量与累计处理延迟的关系。
+### `plot_5_scalability.py`
 
 输入：
 
 ```text
 total_handled_num_pos.csv
 total_handled_num_pow.csv
-```
-
-输入列：
-
-```text
-time, committee, daon, decentruth, seenfeed, deepthought
 ```
 
 输出：
@@ -241,39 +343,89 @@ figures/05_scalability/pos_quantity_vs_time.pdf
 figures/05_scalability/pow_quantity_vs_time.pdf
 ```
 
-图形特征：
+功能：
 
-- x 轴为 `Processed Request Number`。
-- y 轴为 `Cumulative Process Latency`。
-- 使用 `total_handled_num_*.csv` 中的累计处理数量反推不同请求规模对应的处理延迟。
+- 画处理请求数量与累计处理延迟关系。
+- x 轴是处理请求数量。
+- y 轴是累计处理延迟。
+- 当前脚本会先扫描 pos/pow 的全局最大处理数量，确保两张图的 x 轴范围一致。
 
-## 上游数据生成脚本
+## 批量运行脚本
+
+### `run_all_plots.py`
+
+当前按顺序运行：
+
+```text
+plot_2_queue.py
+plot_3_throught.py
+plot_4_certifycate.py
+plot_5_scalability.py
+```
+
+注意：它当前不包含 `plot_1_stacked_bars.py`。如果要完整更新论文中所有 01 到 05 的实验图，需要先单独运行 `plot_1_stacked_bars.py`，再运行 `run_all_plots.py`。
+
+## 上游生成脚本
 
 ### `gen_certif.py`
 
-从各方案的 `consensus.csv` 中生成证书中间数据：
+用途：
+
+- 从各方案目录中的 `consensus.csv` 生成方案级证书时间数据。
+
+读取路径模式：
+
+```text
+results_<scheme>/consensus.csv
+results_<scheme>_pow/consensus.csv
+```
+
+输出路径模式：
 
 ```text
 certif_pos/<scheme>.csv
 certif_pow/<scheme>.csv
 ```
 
-其中每个 scheme 文件包含 `since_time` 等证书累计时间数据。
+当前仓库中能看到 `certif_pos/`，但 `certif_pow/` 不一定总是存在。运行前要确认原始 `results_*` 目录是否在根目录，或者是否还在 `暂时存放不用/` 下。
 
 ### `prepare_certif.py`
 
-把 `certif_pos/` 和 `certif_pow/` 下的方案级 CSV 合并为：
+用途：
+
+- 合并 `certif_pos/` 和 `certif_pow/` 下的方案级 CSV。
+
+读取：
+
+```text
+certif_pos/committee.csv
+certif_pos/daon.csv
+certif_pos/decentruth.csv
+certif_pos/deepthought.csv
+certif_pos/seenfeed.csv
+certif_pow/committee.csv
+certif_pow/daon.csv
+certif_pow/decentruth.csv
+certif_pow/deepthought.csv
+certif_pow/seenfeed.csv
+```
+
+输出：
 
 ```text
 certif_gen_pos.csv
 certif_gen_pow.csv
 ```
 
-这两个文件是 `plot_4_certifycate.py` 的直接输入。
+当前 `certif_gen_*.csv` 实际只有 `committee`、`daon`、`decentruth`、`seenfeed` 这 4 列，因此 plot4 不画 `Deep.`。
 
 ### `prepare.py`
 
-用于从 `results_*_pow/` 风格的结果目录聚合生成：
+用途：
+
+- 从 `results_*_pow/` 下的 `sec.csv` 和 `consensus.csv` 生成 PoW 聚合 CSV。
+
+输出：
 
 ```text
 total_q_len_pow.csv
@@ -283,50 +435,46 @@ searchTime_pow.csv
 onChainTime_pow.csv
 ```
 
-注意：当前仓库中原始结果目录主要保存在 `暂时存放不用/` 下，而 `prepare.py` 读取的是根目录下的 `results_*_pow/`。直接运行前需要确认目录位置是否匹配。
+注意：
 
-## LaTeX 引用关系
+- 这是上游聚合脚本，不是常规出图入口。
+- 当前项目中的原始结果目录主要被放在 `暂时存放不用/` 下；如果要重新跑 `prepare.py`，需要先确认路径是否匹配脚本中的 `results_<method>_pow/...`。
 
-`main.tex` 中三图并排部分引用：
+## LaTeX 中的引用关系
+
+`main.tex` 当前引用这些实验图：
 
 ```text
+figure/01_breakdown/stacked_breakdown_pos.pdf
+figure/01_breakdown/stacked_breakdown_pow.pdf
+figure/05_scalability/pos_quantity_vs_time.pdf
+figure/05_scalability/pow_quantity_vs_time.pdf
 figure/03_throughput/throughput_stability_pos.pdf
 figure/02_queue/queue_dynamics_pos.pdf
 figure/04_certificate/certificate_cdf_pos.pdf
-
 figure/03_throughput/throughput_stability_pow.pdf
 figure/02_queue/queue_dynamics_pow.pdf
 figure/04_certificate/certificate_cdf_pow.pdf
 ```
 
-当前项目中 `figure` 是指向 `figures` 的软链接，因此脚本输出到 `figures/` 后，LaTeX 中的 `figure/...` 路径可以正常解析。
+因为 `figure` 是指向 `figures` 的软链接，所以这些路径对应脚本生成的 `figures/...` 文件。
+
+## 不作为当前主流程说明的文件
+
+以下类型文件没有纳入本文主流程：
+
+- `draw.py`、`draw_improved.py`、`plot_advanced.py`、`plot_comparison.py`、`plot_full_8_analysis.py` 等历史/替代绘图脚本。
+- `tmp_fig/`、`tmp_debug/`、`debug_*.png`、`test_*.png` 等调试输出。
+- `figs_*`、`figs_recreated/`、`figs_pos_basic3/`、`figs_pow_basic3/` 等旧版输出目录。
+- 压缩包、PDF 文献、PPT 等非当前绘图流程文件。
+- `暂时存放不用/` 下的原始或历史结果目录，除非需要重新生成根目录聚合 CSV。
+
+这些文件可能仍有参考价值，但不是当前 `main.tex` 和 `figures/01~05` 论文图的主要生成链路。
 
 ## 常见维护点
 
-- 修改方案显示名：优先改各绘图脚本顶部的 `PROTOCOLS` 字典。
-- 修改输出目录：改 `FIGURES_ROOT` 和 `PLOT_TYPE_NAME` / `SUB_DIR_NAME`。
-- 修改 plot2/plot3/plot4 三图并排效果：保持三者 `DEFAULT_FIGSIZE = (8, 6)`，避免某一张被 `bbox_inches="tight"` 裁成不同尺寸。
-- 修改 plot4 标注：关注 `Peak certificates reached.` 文本框、箭头边界计算、以及峰值空心圈大小。
-- 修改 plot3 PoW 各方案横向范围：改 `POW_AXIS_CONFIG`。
-
-## 快速检查命令
-
-```bash
-.venv/bin/python -m py_compile \
-  plot_2_queue.py \
-  plot_3_throught.py \
-  plot_4_certifycate.py \
-  plot_5_scalability.py
-```
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-cache .venv/bin/python run_all_plots.py
-```
-
-检查 PDF 页面尺寸：
-
-```bash
-pdfinfo figures/03_throughput/throughput_stability_pos.pdf
-pdfinfo figures/02_queue/queue_dynamics_pos.pdf
-pdfinfo figures/04_certificate/certificate_cdf_pos.pdf
-```
+- 改方案显示名：修改各 `plot_*.py` 顶部的 `PROTOCOLS`。
+- 改 plot3 PoW 每行 x 轴范围：修改 `plot_3_throught.py` 中的 `POW_AXIS_CONFIG`。
+- 改 plot4 标注：修改 `plot_4_certifycate.py` 中 `Peak certificates reached.` 附近的文本框、箭头和峰值圈逻辑。
+- 保持三图并排尺寸一致：`plot_2_queue.py`、`plot_3_throught.py`、`plot_4_certifycate.py` 应保持 `DEFAULT_FIGSIZE = (8, 6)`，并避免对其中某一张使用 tight 裁切导致页面尺寸不同。
+- 完整刷新论文图：运行 `plot_1_stacked_bars.py`，再运行 `run_all_plots.py`。
