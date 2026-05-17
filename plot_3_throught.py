@@ -54,6 +54,33 @@ POS_ANNOTATION_BOX_STYLE = dict(
     edgecolor='black',
     alpha=0.95,
 )
+POW_AXIS_CONFIG = {
+    "committee": {
+        "xlim": (13, 72),
+        "ticks": [13, 33, 53, 72],
+        "labels": ["13", "33", "53", "72"],
+    },
+    "deepthought": {
+        "xlim": (0.01, 0.09),
+        "ticks": [0.01, 0.04, 0.06, 0.09],
+        "labels": ["0.01", "0.04", "0.06", "0.09"],
+    },
+    "seenfeed": {
+        "xlim": (13, 15.8),
+        "ticks": [13, 14, 15],
+        "labels": ["13", "14", "15"],
+    },
+    "decentruth": {
+        "xlim": (9.0, 11.0),
+        "ticks": [9.0, 9.6, 10.0, 11.0],
+        "labels": ["9.0", "9.6", "10", "11"],
+    },
+    "daon": {
+        "xlim": (0.0, 38.0),
+        "ticks": [0, 13, 25, 38],
+        "labels": ["0.00", "13", "25", "38"],
+    },
+}
 ANNOTATION_TEXT = "All requests\nhave been handled"
 ANNOTATION_TEXT_COLOR = "black"
 ANNOTATION_FONT_SIZE = 18
@@ -204,7 +231,7 @@ def plot_throughput_stability(network: str, out_dir: str):
         )
         axes = np.atleast_1d(axes)
 
-        for idx, (ax, label, color, vals) in enumerate(zip(axes, labels, colors, data_list)):
+        for idx, (ax, key, label, color, vals) in enumerate(zip(axes, keys_used, labels, colors, data_list)):
             bplot = ax.boxplot(
                 [vals],
                 vert=False,
@@ -225,19 +252,25 @@ def plot_throughput_stability(network: str, out_dir: str):
                 patch.set_facecolor(color)
                 patch.set_alpha(0.65)
 
-            x_min, x_max = np.nanpercentile(vals, [10, 90])
-            x_min = float(x_min)
-            x_max = float(x_max)
-            if abs(x_max - x_min) < 1e-9:
-                x_min = float(np.nanmin(vals))
-                x_max = float(np.nanmax(vals))
-            x_span = max(x_max - x_min, max(abs(x_max), 1.0) * 0.04)
-            x_left = max(0, x_min - x_span * 0.12)
-            x_right = x_max + x_span * 0.12
-            tick_values = np.linspace(x_left, x_right, 4)
-            ax.set_xlim(x_left, x_right)
-            ax.set_xticks(tick_values)
-            ax.set_xticklabels([format_panel_tick(v) for v in tick_values])
+            axis_config = POW_AXIS_CONFIG.get(key)
+            if axis_config is None:
+                x_min, x_max = np.nanpercentile(vals, [10, 90])
+                x_min = float(x_min)
+                x_max = float(x_max)
+                if abs(x_max - x_min) < 1e-9:
+                    x_min = float(np.nanmin(vals))
+                    x_max = float(np.nanmax(vals))
+                x_span = max(x_max - x_min, max(abs(x_max), 1.0) * 0.04)
+                x_left = max(0, x_min - x_span * 0.12)
+                x_right = x_max + x_span * 0.12
+                tick_values = np.linspace(x_left, x_right, 4)
+                ax.set_xlim(x_left, x_right)
+                ax.set_xticks(tick_values)
+                ax.set_xticklabels([format_panel_tick(v) for v in tick_values])
+            else:
+                ax.set_xlim(*axis_config["xlim"])
+                ax.set_xticks(axis_config["ticks"])
+                ax.set_xticklabels(axis_config["labels"])
             ax.set_ylabel(label, fontsize=POW_PANEL_TITLE_SIZE, rotation=0, labelpad=58, va='center')
             ax.tick_params(axis='x', labelsize=POW_PANEL_TICK_LABEL_SIZE)
             ax.tick_params(axis='y', left=False, labelleft=False)
