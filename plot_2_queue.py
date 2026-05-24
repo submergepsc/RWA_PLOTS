@@ -1,4 +1,3 @@
-
 import os
 
 import pandas as pd
@@ -12,12 +11,12 @@ DATA_DIR = "."
 FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "02_queue"
 
-PROTOCOLS = {
-    "committee":   {"label": "FastOracle", "color": "#1f77b4", "z": 10, "lw": 4,   "marker": "o"},
-    "deepthought": {"label": "Deep.",      "color": "#9467bd", "z": 1,  "lw": 2.5, "marker": "v"},
-    "seenfeed":    {"label": "Sen.",       "color": "#d62728", "z": 1,  "lw": 2.5, "marker": "D"},
-    "decentruth":  {"label": "DECEN.",     "color": "#2ca02c", "z": 1,  "lw": 2.5, "marker": "^"},
-    "daon":        {"label": "DAON",       "color": "#ff7f0e", "z": 1,  "lw": 2.5, "marker": "s"},
+PROTOCOLS = { 
+    "committee":   {"label": "FastOracle", "color": "#DF3156", "z": 10, "lw": 4,   "marker": "o"}, 
+    "deepthought": {"label": "Deep.",      "color": "#0088B2", "z": 1,  "lw": 2.5, "marker": "v"}, 
+    "seenfeed":    {"label": "Sen.",       "color": "#E69F00", "z": 1,  "lw": 2.5, "marker": "D"}, 
+    "decentruth":  {"label": "DECEN.",     "color": "#009E73", "z": 1,  "lw": 2.5, "marker": "^"}, 
+    "daon":        {"label": "DAON",       "color": "#56B4E9", "z": 1,  "lw": 2.5, "marker": "s"}, 
 }
 
 L_SIZE, T_SIZE, LEG_SIZE = 24, 20, 14
@@ -102,9 +101,13 @@ def plot_queue_dynamics(network: str, out_dir: str):
                 max_time_others = max(max_time_others, active_data['time_min'].max())
 
     # 2. 核心裁剪逻辑
-    min_crop_limit = 1200.0 if network == 'pos' else 25000.0
+    min_crop_limit = 2000.0 if network == 'pos' else 120000.0
     crop_limit = max(max_time_others * 1.05, min_crop_limit)
     ax.set_xlim(1, crop_limit)
+
+    max_y = 26000 if network == 'pow' else 26000
+    ax.set_ylim(top=max_y)
+
     print(f"   [Crop] {network.upper()} X-axis cropped at {crop_limit:.1f} min.")
 
     # 3. 装饰
@@ -117,19 +120,45 @@ def plot_queue_dynamics(network: str, out_dir: str):
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.yaxis.set_major_formatter(FuncFormatter(format_scientific))
     ax.grid(True, which="both")
-    
-    # Keep the legend in a single column for the narrow figure layout.
-    ax.legend(
+
+    handles, labels = ax.get_legend_handles_labels()
+    legend_items = [
+        ("FastOracle", True),
+        ("Deep.", True),
+        ("", False),
+        ("DECEN.", True),
+        ("DAON", True),
+        ("Sen.", True)
+    ]
+    ordered_handles = []
+    ordered_labels = []
+    for name, is_real in legend_items:
+        if not is_real:
+            ordered_handles.append(plt.Line2D([], [], color='none', alpha=0))
+            ordered_labels.append("")
+        else:
+            idx = labels.index(name)
+            h = handles[idx]
+            h.set_markersize(10)
+            ordered_handles.append(h)
+            ordered_labels.append(labels[idx])
+
+    leg = ax.legend(
+        handles=ordered_handles,
+        labels=ordered_labels,
         loc='upper right',
         bbox_to_anchor=(0.995, 0.995),
-        ncol=1,
-        fontsize=LEG_SIZE,
+        ncol=2,
+        fontsize=21,
         frameon=True,
         framealpha=0.45,
-        columnspacing=0.9,
-        handletextpad=0.5,
+        columnspacing=1.2,
+        handletextpad=0.6,
         borderaxespad=0.3,
+        handlelength=2.0
     )
+    leg.set_zorder(1)
+
     fig.subplots_adjust(**FIGURE_MARGINS)
 
     save_path = os.path.join(out_dir, f"queue_dynamics_{network}.pdf")
@@ -141,5 +170,3 @@ if __name__ == "__main__":
     os.makedirs(target_dir, exist_ok=True)
     for net in ['pos', 'pow']:
         plot_queue_dynamics(net, target_dir)
-
- 

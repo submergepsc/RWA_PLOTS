@@ -22,23 +22,23 @@ PEAK_ANNOTATION_ARROW_KEY = "committee"
 
 # 定义协议配置
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#1f77b4", "marker": "o"},
-    "deepthought": {"label": "Deep.", "color": "#9467bd", "marker": "v"},
-    "seenfeed": {"label": "Sen.", "color": "#d62728", "marker": "D"},
-    "decentruth": {"label": "DECEN.", "color": "#2ca02c", "marker": "^"},
-    "daon": {"label": "DAON", "color": "#ff7f0e", "marker": "s"},
+    "committee": {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
+    "deepthought": {"label": "Deep.", "color": "#0088B2", "marker": "v"},
+    "seenfeed": {"label": "Sen.", "color": "#E69F00", "marker": "D"},
+    "decentruth": {"label": "DECEN.", "color": "#009E73", "marker": "^"},
+    "daon": {"label": "DAON", "color": "#56B4E9", "marker": "s"},
 }
 
 # 【关键修改】：适合单栏排版的尺寸与字号
 AXIS_LABEL_SIZE = 24  # 坐标轴标题
 TICK_LABEL_SIZE = 20  # 坐标轴数字
-LEGEND_FONT_SIZE = 18 # 图例字号
+LEGEND_FONT_SIZE = 21 # 图例字号
 DEFAULT_FIGSIZE = (8, 6) # 画布尺寸：8宽, 6高 (经典的 4:3 比例)
 
 SAVEFIG_KWARGS = {}
 FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.93)
-MARKER_SIZE_OURS = 24
-MARKER_SIZE_OTHERS = 18
+MARKER_SIZE_OURS = 15
+MARKER_SIZE_OTHERS = 15
 PLATEAU_MARKERS_PER_SEGMENT = 4
 Y_AXIS_EXTRA_PADDING = 1.22
 
@@ -238,8 +238,9 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
     # ================= 【修复核心区】绝对数值定位 =================
     if peak_points:
         # 绘制空心大圆圈强调
-        for key, (x0, y0) in peak_points.items():
-            ax.scatter([x0], [y0], s=420, facecolors='none', edgecolors='black', linewidths=1.5, zorder=20)
+        if 'committee' in peak_points:
+            x0, y0 = peak_points['committee']
+            ax.scatter([x0], [y0], s=700, facecolors='none', edgecolors='black', linewidths=2.0, zorder=20)
 
         # 获取 FastOracle 的数据点作为起点 (x0, y0)
         arrow_key = PEAK_ANNOTATION_ARROW_KEY if PEAK_ANNOTATION_ARROW_KEY in peak_points else next(iter(peak_points))
@@ -260,7 +261,8 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
             ha='center',
             va='center',
             clip_on=True,
-            bbox=dict(boxstyle='round,pad=0.55', facecolor='white', edgecolor='black', alpha=0.92)
+            zorder=30,
+            bbox=dict(boxstyle='round,pad=0.55', facecolor='white', edgecolor='black', alpha=1)
         )
 
         # 2. Draw the arrow from the real text-box edge to the peak point.
@@ -273,15 +275,15 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
         arrow_start_data = ax.transData.inverted().transform(arrow_start_disp)
         ax.annotate(
             text="", 
-            xy=(x0, y0),                   # 终点 (数据点)
+            xy=(x0+270, y0+50),                   # 终点 (数据点)
             xycoords='data',
-            xytext=arrow_start_data,
+            xytext=(x0+3000, y0+300),
             textcoords='data',
             annotation_clip=True,
             arrowprops=dict(
                 arrowstyle='->',
                 color='#d62728',
-                lw=2.0,
+                lw=3.5,
                 mutation_scale=14,
                 shrinkA=0,
                 shrinkB=2                  # B端缩进：碰到边框即止

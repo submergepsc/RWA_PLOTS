@@ -23,11 +23,11 @@ FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "03_throughput"
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#1f77b4"},
-    "deepthought": {"label": "Deep.", "color": "#9467bd"},
-    "seenfeed": {"label": "Sen.", "color": "#d62728"},
-    "decentruth": {"label": "DECEN.", "color": "#2ca02c"},
-    "daon": {"label": "DAON", "color": "#ff7f0e"},
+    "committee": {"label": "FastOracle", "color": "#DF3156"},
+    "deepthought": {"label": "Deep.", "color": "#0088B2"},
+    "seenfeed": {"label": "Sen.", "color": "#E69F00"},
+    "decentruth": {"label": "DECEN.", "color": "#009E73"},
+    "daon": {"label": "DAON", "color": "#56B4E9"},
 }
 
 # 样式配置 (保留原脚本高字号)
@@ -421,7 +421,7 @@ def plot_throughput_stability(network: str, out_dir: str):
             loc='upper right', 
             bbox_to_anchor=(0.985, 0.93),
             ncol=1, 
-            fontsize=legend_font_size,
+            fontsize=21,
             frameon=True,
             edgecolor='gray',
             facecolor='white',

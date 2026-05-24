@@ -21,17 +21,17 @@ SCENARIOS = {
 }
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee":  {"label": "FastOracle", "color": "#1f77b4", "marker": "o"},
-    "daon":       {"label": "DAON",       "color": "#ff7f0e", "marker": "s"},
-    "decentruth": {"label": "DECEN.",     "color": "#2ca02c", "marker": "^"},
-    "seenfeed":   {"label": "Sen.",       "color": "#d62728", "marker": "D"},
-    "deepthought":{"label": "Deep.",      "color": "#9467bd", "marker": "v"},
+    "daon":       {"label": "DAON",       "color": "#56B4E9", "marker": "s"},
+    "decentruth": {"label": "DECEN.",     "color": "#009E73", "marker": "^"},
+    "committee":  {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
+    "seenfeed":   {"label": "Sen.",       "color": "#E69F00", "marker": "D"},
+    "deepthought":{"label": "Deep.",      "color": "#0088B2", "marker": "v"},
 }
 
 AXIS_LABEL_SIZE = 32
 TICK_LABEL_SIZE = 32
 LEGEND_FONT_SIZE = 32
-DEFAULT_FIGSIZE = (12, 9)
+DEFAULT_FIGSIZE = (12, 7)
 
 # 格式化函数
 def k_formatter(x, pos):
@@ -69,14 +69,23 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
             y_sampled = np.interp(x_sampled, x_data, y_data)
 
             is_ours = (method == 'committee')
+            is_deep_pos = (method == 'deepthought' and scenario == 'pos')
+
+            if is_deep_pos:
+                zorder_val = 15
+            elif is_ours:
+                zorder_val = 10
+            else:
+                zorder_val = 5
+
             ax.plot(x_sampled, y_sampled, 
-                    label=config['label'], 
-                    color=config['color'],
-                    marker=config['marker'],
-                    markersize=24 if is_ours else 18,
-                    linewidth=7 if is_ours else 4,
-                    alpha=0.9,
-                    zorder=10 if is_ours else 5)
+                label=config['label'], 
+                color=config['color'],
+                marker=config['marker'],
+                markersize=24 if is_ours else 18,
+                linewidth=7 if is_ours else 4,
+                alpha=0.9,
+                zorder=zorder_val)
             
             max_x_limit = max(max_x_limit, x_data.max())
             max_y_limit = max(max_y_limit, y_data.max())
@@ -101,7 +110,7 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
     
     ax.grid(True, which="both", linestyle='--', linewidth=1.2, alpha=0.3)
     legend_loc = 'upper left' if scenario == 'pow' else 'upper left'
-    ax.legend(loc=legend_loc, fontsize=LEGEND_FONT_SIZE, frameon=True, framealpha=0.9)
+    ax.legend(loc=legend_loc, fontsize=LEGEND_FONT_SIZE, frameon=True, framealpha=0.9, ncol=2,handlelength=1.2, handleheight=0.6, columnspacing=-0.8, handletextpad=0.5)
 
     # 美化边框
     for spine in ['top', 'right']: ax.spines[spine].set_visible(False)
@@ -130,4 +139,4 @@ if __name__ == "__main__":
             df_in = pd.read_csv(path, index_col=0)
             plot_scalability_optimized(df_in, name, target_dir, global_max_x)
 
-    print(f"\n[Done] Y轴标签已更新为 cumulative process latency。")
+#    print(f"\n[Done] Y轴标签已更新为 cumulative process latency。")
