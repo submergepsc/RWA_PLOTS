@@ -40,6 +40,13 @@ FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
 POW_BOXPLOT_MARGINS = dict(left=0.24, right=0.96, bottom=0.16, top=0.96)
 POW_PANEL_TITLE_SIZE = 20
 POW_PANEL_TICK_LABEL_SIZE = 18
+POW_PANEL_HSPACE = 0.48
+POW_DEEP_KEY = "deepthought"
+POW_COMBINED_AXIS_CONFIG = {
+    "xlim": (0.0, 75.0),
+    "ticks": [0, 15, 30, 45, 60, 75],
+    "labels": ["0", "15", "30", "45", "60", "75"],
+}
 POS_FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.95)
 POS_AXIS_LABEL_SIZE = 24
 POS_TICK_LABEL_SIZE = 20
@@ -187,10 +194,7 @@ def plot_throughput_stability(network: str, out_dir: str):
     # ---------------------------------------------------------
     if network == 'pow':
         protocols_present = [k for k in PROTOCOLS.keys() if k in df.columns]
-        keys_used = []
-        data_list = []
-        labels = []
-        colors = []
+        pow_series = {}
 
         if df.loc[mask].empty:
             print(f"   [WARN] No data after bios cut for {network}")
@@ -213,34 +217,54 @@ def plot_throughput_stability(network: str, out_dir: str):
             tps_per_min = tps_per_min[np.isfinite(tps_per_min) & (tps_per_min > 0)]
             if tps_per_min.size == 0:
                 continue
-            keys_used.append(key)
-            data_list.append(tps_per_min)
-            labels.append(PROTOCOLS[key]['label'])
-            colors.append(PROTOCOLS[key]['color'])
+            pow_series[key] = dict(
+                values=tps_per_min,
+                label=PROTOCOLS[key]['label'],
+                color=PROTOCOLS[key]['color'],
+            )
 
-        if len(data_list) == 0:
+        if len(pow_series) == 0:
             print(f"   [WARN] No protocol data for {network}")
             return
 
+        combined_keys = [key for key in PROTOCOLS.keys() if key != POW_DEEP_KEY and key in pow_series]
+        panel_specs = []
+        if combined_keys:
+            panel_specs.append((combined_keys, POW_COMBINED_AXIS_CONFIG))
+        if POW_DEEP_KEY in pow_series:
+            panel_specs.append(([POW_DEEP_KEY], POW_AXIS_CONFIG[POW_DEEP_KEY]))
+        if not panel_specs:
+            print(f"   [WARN] No grouped protocol data for {network}")
+            return
+
         fig, axes = plt.subplots(
-            len(data_list),
+            len(panel_specs),
             1,
             figsize=DEFAULT_FIGSIZE,
             sharey=False,
-            gridspec_kw={'hspace': 0.62},
+            gridspec_kw={
+                'hspace': POW_PANEL_HSPACE,
+                'height_ratios': [len(keys) for keys, _axis_config in panel_specs],
+            },
         )
         axes = np.atleast_1d(axes)
 
-        for idx, (ax, key, label, color, vals) in enumerate(zip(axes, keys_used, labels, colors, data_list)):
+        for ax, (panel_keys, axis_config) in zip(axes, panel_specs):
+            data_list = [pow_series[key]['values'] for key in panel_keys]
+            labels = [pow_series[key]['label'] for key in panel_keys]
+            colors = [pow_series[key]['color'] for key in panel_keys]
+            positions = np.arange(len(panel_keys), 0, -1)
+
             bplot = ax.boxplot(
-                [vals],
+                data_list,
                 vert=False,
+                positions=positions,
                 patch_artist=True,
-                tick_labels=[""],
+                tick_labels=labels,
                 showfliers=False,
                 whis=(10, 90),
                 showmeans=True,
-                widths=0.75,
+                widths=0.62,
                 meanprops=dict(marker='D', markerfacecolor='white', markeredgecolor='black', markersize=4),
                 medianprops=dict(color='black', linewidth=1.6),
                 boxprops=dict(linewidth=1.2),
@@ -248,32 +272,16 @@ def plot_throughput_stability(network: str, out_dir: str):
                 capprops=dict(linewidth=1.2),
                 flierprops=dict(marker='o', markersize=4, markeredgecolor='gray', alpha=0.8)
             )
-            for patch in bplot['boxes']:
+            for patch, color in zip(bplot['boxes'], colors):
                 patch.set_facecolor(color)
                 patch.set_alpha(0.65)
 
-            axis_config = POW_AXIS_CONFIG.get(key)
-            if axis_config is None:
-                x_min, x_max = np.nanpercentile(vals, [10, 90])
-                x_min = float(x_min)
-                x_max = float(x_max)
-                if abs(x_max - x_min) < 1e-9:
-                    x_min = float(np.nanmin(vals))
-                    x_max = float(np.nanmax(vals))
-                x_span = max(x_max - x_min, max(abs(x_max), 1.0) * 0.04)
-                x_left = max(0, x_min - x_span * 0.12)
-                x_right = x_max + x_span * 0.12
-                tick_values = np.linspace(x_left, x_right, 4)
-                ax.set_xlim(x_left, x_right)
-                ax.set_xticks(tick_values)
-                ax.set_xticklabels([format_panel_tick(v) for v in tick_values])
-            else:
-                ax.set_xlim(*axis_config["xlim"])
-                ax.set_xticks(axis_config["ticks"])
-                ax.set_xticklabels(axis_config["labels"])
-            ax.set_ylabel(label, fontsize=POW_PANEL_TITLE_SIZE, rotation=0, labelpad=58, va='center')
+            ax.set_xlim(*axis_config["xlim"])
+            ax.set_xticks(axis_config["ticks"])
+            ax.set_xticklabels(axis_config["labels"])
+            ax.set_ylim(0.4, len(panel_keys) + 0.6)
+            ax.tick_params(axis='y', left=False, labelsize=POW_PANEL_TITLE_SIZE)
             ax.tick_params(axis='x', labelsize=POW_PANEL_TICK_LABEL_SIZE)
-            ax.tick_params(axis='y', left=False, labelleft=False)
             ax.grid(True, axis='x', linestyle='--', alpha=0.45)
 
         fig.text(0.5, 0.04, "Throughput (TPS)", ha='center', va='center', fontsize=AXIS_LABEL_SIZE)
