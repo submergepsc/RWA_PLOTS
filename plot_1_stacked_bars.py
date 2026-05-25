@@ -17,11 +17,11 @@ PLOT_TYPE_NAME = "01_breakdown"
 
 # 定义方案及其对应颜色
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#1f77b4"},
-    "deepthought": {"label": "Deep.", "color": "#9467bd"},
-    "seenfeed": {"label": "Sen.", "color": "#d62728"},
-    "decentruth": {"label": "DECEN.", "color": "#2ca02c"},
-    "daon": {"label": "DAON", "color": "#ff7f0e"},
+    "committee": {"label": "FastOracle", "color": "#DF3156"},
+    "deepthought": {"label": "Deep.", "color": "#4A0080"},
+    "seenfeed": {"label": "Sen.", "color": "#E69F00"},
+    "decentruth": {"label": "DECEN.", "color": "#009E73"},
+    "daon": {"label": "DAON", "color": "#56B4E9"},
 }
 
 SAVEFIG_KWARGS = {"bbox_inches": "tight", "pad_inches": 0.05}

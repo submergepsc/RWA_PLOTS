@@ -30,11 +30,11 @@ plt.rcParams.update({
 
 # 统一的协议名称、颜色和图例标签
 PROTOCOLS = {
-    'committee': {'label': 'RWA-FastOracle (Ours)', 'color': '#1f77b4'},
-    'daon': {'label': 'Daon', 'color': '#ff7f0e'},
-    'decentruth': {'label': 'Decentruth', 'color': '#2ca02c'},
-    'seenfeed': {'label': 'Seenfeed', 'color': '#d62728'},
-    'deepthought': {'label': 'Deepthought', 'color': '#9467bd'}
+    'committee': {'label': 'RWA-FastOracle (Ours)', 'color': '#DF3156'},
+    'daon': {'label': 'Daon', 'color': '#56B4E9'},
+    'decentruth': {'label': 'Decentruth', 'color': '#009E73'},
+    'seenfeed': {'label': 'Seenfeed', 'color': '#E69F00'},
+    'deepthought': {'label': 'Deepthought', 'color': '#4A0080'}
 }
 
 # 2. 文件与目录配置

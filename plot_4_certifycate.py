@@ -23,7 +23,7 @@ PEAK_ANNOTATION_ARROW_KEY = "committee"
 # 定义协议配置
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
-    "deepthought": {"label": "Deep.", "color": "#0088B2", "marker": "v"},
+    "deepthought": {"label": "Deep.", "color": "#4A0080", "marker": "v"},
     "seenfeed": {"label": "Sen.", "color": "#E69F00", "marker": "D"},
     "decentruth": {"label": "DECEN.", "color": "#009E73", "marker": "^"},
     "daon": {"label": "DAON", "color": "#56B4E9", "marker": "s"},

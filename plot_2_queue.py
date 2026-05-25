@@ -13,7 +13,7 @@ PLOT_TYPE_NAME = "02_queue"
 
 PROTOCOLS = { 
     "committee":   {"label": "FastOracle", "color": "#DF3156", "z": 10, "lw": 4,   "marker": "o"}, 
-    "deepthought": {"label": "Deep.",      "color": "#0088B2", "z": 1,  "lw": 2.5, "marker": "v"}, 
+    "deepthought": {"label": "Deep.",      "color": "#4A0080", "z": 1,  "lw": 2.5, "marker": "v"}, 
     "seenfeed":    {"label": "Sen.",       "color": "#E69F00", "z": 1,  "lw": 2.5, "marker": "D"}, 
     "decentruth":  {"label": "DECEN.",     "color": "#009E73", "z": 1,  "lw": 2.5, "marker": "^"}, 
     "daon":        {"label": "DAON",       "color": "#56B4E9", "z": 1,  "lw": 2.5, "marker": "s"}, 

@@ -15,11 +15,11 @@ import seaborn as sns
 
 # 统一的协议名称、颜色和图例标签 (保持与 plot_comparison.py 完全一致)
 PROTOCOLS = {
-    'committee': {'label': 'Ours', 'color': '#1f77b4'},
-    'daon': {'label': 'Daon', 'color': '#ff7f0e'},
-    'decentruth': {'label': 'Decentruth', 'color': '#2ca02c'},
-    'seenfeed': {'label': 'Seenfeed', 'color': '#d62728'},
-    'deepthought': {'label': 'Deepthought', 'color': '#9467bd'}
+    'committee': {'label': 'Ours', 'color': '#DF3156'},
+    'daon': {'label': 'Daon', 'color': '#56B4E9'},
+    'decentruth': {'label': 'Decentruth', 'color': '#009E73'},
+    'seenfeed': {'label': 'Seenfeed', 'color': '#E69F00'},
+    'deepthought': {'label': 'Deepthought', 'color': '#4A0080'}
 }
 
 # 输出目录

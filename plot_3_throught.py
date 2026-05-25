@@ -24,7 +24,7 @@ PLOT_TYPE_NAME = "03_throughput"
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "FastOracle", "color": "#DF3156"},
-    "deepthought": {"label": "Deep.", "color": "#0088B2"},
+    "deepthought": {"label": "Deep.", "color": "#4A0080"},
     "seenfeed": {"label": "Sen.", "color": "#E69F00"},
     "decentruth": {"label": "DECEN.", "color": "#009E73"},
     "daon": {"label": "DAON", "color": "#56B4E9"},
@@ -42,6 +42,8 @@ POW_PANEL_TITLE_SIZE = 20
 POW_PANEL_TICK_LABEL_SIZE = 18
 POW_PANEL_HSPACE = 0.30
 POW_DEEP_KEY = "deepthought"
+POW_COMBINED_Y_TICK_STEP = 20.0
+POW_DEEP_Y_TICK_STEP = 0.10
 POW_RANGE_IGNORED_KEYS = {"decentruth"}
 POW_LINE_WIDTH_FAST = 2.2
 POW_LINE_WIDTH_BASELINE = 1.6
@@ -334,15 +336,13 @@ def plot_throughput_stability(network: str, out_dir: str):
                 )
 
             y_upper, y_step = get_nice_throughput_axis(group_max)
-            if panel_keys == [POW_DEEP_KEY]:
-                x_upper, x_step = X_MAX_SECONDS / SECONDS_PER_MINUTE, X_TICK_MINUTES
-            else:
-                x_upper, x_step = get_nice_time_axis(group_x_max)
+            x_upper, x_step = X_MAX_SECONDS / SECONDS_PER_MINUTE, X_TICK_MINUTES
             ax.set_xlim(0, x_upper)
             ax.xaxis.set_major_locator(MultipleLocator(x_step))
             ax.xaxis.set_major_formatter(FuncFormatter(format_time_to_min))
             ax.set_ylim(0, y_upper)
-            ax.yaxis.set_major_locator(MultipleLocator(y_step))
+            y_tick_step = POW_DEEP_Y_TICK_STEP if panel_keys == [POW_DEEP_KEY] else POW_COMBINED_Y_TICK_STEP
+            ax.yaxis.set_major_locator(MultipleLocator(y_tick_step))
             ax.yaxis.set_major_formatter(FuncFormatter(lambda value, pos: format_panel_tick(value)))
             ax.tick_params(axis='both', labelsize=POW_PANEL_TICK_LABEL_SIZE)
             ax.grid(True)

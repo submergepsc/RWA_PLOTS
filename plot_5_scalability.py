@@ -25,17 +25,23 @@ PROTOCOLS: Dict[str, Dict[str, str]] = {
     "decentruth": {"label": "DECEN.",     "color": "#009E73", "marker": "^"},
     "committee":  {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
     "seenfeed":   {"label": "Sen.",       "color": "#E69F00", "marker": "D"},
-    "deepthought":{"label": "Deep.",      "color": "#0088B2", "marker": "v"},
+    "deepthought":{"label": "Deep.",      "color": "#4A0080", "marker": "v"},
 }
 
-AXIS_LABEL_SIZE = 32
-TICK_LABEL_SIZE = 32
-LEGEND_FONT_SIZE = 32
+AXIS_LABEL_SIZE = 25.6
+TICK_LABEL_SIZE = AXIS_LABEL_SIZE
+LEGEND_FONT_SIZE = AXIS_LABEL_SIZE
 DEFAULT_FIGSIZE = (12, 7)
 
 # 格式化函数
-def k_formatter(x, pos):
-    return f'{x/1000:.0f}k' if x >= 1000 else f'{int(x)}'
+def scientific_formatter(x, pos):
+    if abs(x) < 1000:
+        return f'{int(x)}'
+
+    exponent = int(np.floor(np.log10(abs(x))))
+    mantissa = x / (10 ** exponent)
+    mantissa_text = f'{mantissa:.1f}'.rstrip('0').rstrip('.')
+    return f'{mantissa_text}e{exponent}'
 
 # ================= 绘图核心逻辑 =================
 
@@ -92,9 +98,9 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
 
     # --- 坐标轴格式化 ---
     ax.set_xlabel("Processed Request Number", fontsize=AXIS_LABEL_SIZE, labelpad=15)
-    ax.set_ylabel("Cumulative Process Latency", fontsize=AXIS_LABEL_SIZE*0.8, labelpad=15)
-    # X轴设为 k 单
-    ax.xaxis.set_major_formatter(FuncFormatter(k_formatter))
+    ax.set_ylabel("Cumulative Process Latency", fontsize=AXIS_LABEL_SIZE, labelpad=15)
+    ax.xaxis.set_major_formatter(FuncFormatter(scientific_formatter))
+    ax.yaxis.set_major_formatter(FuncFormatter(scientific_formatter))
     
     # 【修改 4】Y轴刻度优化，使用线性刻度
     ax.yaxis.set_major_locator(plt.MaxNLocator(6))
