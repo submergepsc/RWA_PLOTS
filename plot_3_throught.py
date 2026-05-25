@@ -37,16 +37,15 @@ LEGEND_FONT_SIZE = 14
 DEFAULT_FIGSIZE = (8, 6)
 SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
-POW_BOXPLOT_MARGINS = dict(left=0.24, right=0.96, bottom=0.16, top=0.96)
+POW_BOXPLOT_MARGINS = dict(left=0.17, right=0.96, bottom=0.15, top=0.88)
 POW_PANEL_TITLE_SIZE = 20
 POW_PANEL_TICK_LABEL_SIZE = 18
-POW_PANEL_HSPACE = 0.48
+POW_PANEL_HSPACE = 0.30
 POW_DEEP_KEY = "deepthought"
-POW_COMBINED_AXIS_CONFIG = {
-    "xlim": (0.0, 75.0),
-    "ticks": [0, 15, 30, 45, 60, 75],
-    "labels": ["0", "15", "30", "45", "60", "75"],
-}
+POW_RANGE_IGNORED_KEYS = {"decentruth"}
+POW_LINE_WIDTH_FAST = 2.2
+POW_LINE_WIDTH_BASELINE = 1.6
+POW_VLINE_WIDTH = 1.4
 POS_FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.95)
 POS_AXIS_LABEL_SIZE = 24
 POS_TICK_LABEL_SIZE = 20
@@ -124,6 +123,36 @@ def format_panel_tick(value: float) -> str:
         return f"{value:.1f}"
     return f"{value:.2f}"
 
+def get_nice_throughput_axis(max_value: float) -> tuple[float, float]:
+    if max_value <= 0:
+        return 1.0, 0.25
+    if max_value <= 0.2:
+        step = 0.05
+    elif max_value <= 1:
+        step = 0.2
+    elif max_value <= 3:
+        step = 0.5
+    elif max_value <= 5:
+        step = 1.0
+    elif max_value <= 15:
+        step = 5.0
+    else:
+        step = 10.0
+    upper = np.ceil(max_value * 1.05 / step) * step
+    return float(max(upper, step)), step
+
+def get_nice_time_axis(max_minutes: float) -> tuple[float, float]:
+    if not np.isfinite(max_minutes) or max_minutes <= 0:
+        return X_MAX_SECONDS / SECONDS_PER_MINUTE, X_TICK_MINUTES
+    if max_minutes <= 80:
+        step = 10.0
+    elif max_minutes <= 180:
+        step = 20.0
+    else:
+        step = 40.0
+    upper = np.ceil(max_minutes * 1.03 / step) * step
+    return float(max(upper, step)), step
+
 def load_data(network: str) -> pd.DataFrame:
     filename = f"total_handled_num_{network}.csv"
     path = os.path.join(DATA_DIR, filename)
@@ -173,6 +202,9 @@ def plot_throughput_stability(network: str, out_dir: str):
     x_label = "Time (min)"
     legend_handles = None
     legend_labels = None
+    legend_bbox = (0.985, 0.93)
+    legend_ncol = 1
+    legend_font_size_final = 21
     x_label_font_size = AXIS_LABEL_SIZE
     legend_font_size = LEGEND_FONT_SIZE
 
@@ -190,7 +222,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                 completion_indices[key] = int(reach_max_indices[0])
 
     # ---------------------------------------------------------
-    # 场景 A: PoW (箱线图)
+    # 场景 A: PoW (吞吐量折线图，Deep. 单独分面)
     # ---------------------------------------------------------
     if network == 'pow':
         protocols_present = [k for k in PROTOCOLS.keys() if k in df.columns]
@@ -201,6 +233,7 @@ def plot_throughput_stability(network: str, out_dir: str):
             return
 
         df_masked = df.loc[mask].copy().reset_index(drop=True)
+        df_masked['minute'] = (df_masked['time'] - bios_val) / SECONDS_PER_MINUTE
         df_masked['minute_bin'] = ((df_masked['time'] - bios_val) // SECONDS_PER_MINUTE).astype(int)
 
         for key in protocols_present:
@@ -209,30 +242,33 @@ def plot_throughput_stability(network: str, out_dir: str):
                 stop_idx = completion_indices[key]
                 key_df = df_masked.iloc[:stop_idx + 1].copy()
 
-            grp = key_df.groupby('minute_bin')[key]
-            diff_per_min = grp.last() - grp.first()
-            active_diff = diff_per_min[diff_per_min > 0]
-            used_diff = active_diff if len(active_diff) > 0 else diff_per_min
-            tps_per_min = (used_diff / SECONDS_PER_MINUTE).to_numpy()
-            tps_per_min = tps_per_min[np.isfinite(tps_per_min) & (tps_per_min > 0)]
-            if tps_per_min.size == 0:
+            grouped = key_df.groupby('minute_bin')
+            x_plot = grouped['minute'].last().to_numpy()
+            y_plot = ((grouped[key].last() - grouped[key].first()) / SECONDS_PER_MINUTE).clip(lower=0).to_numpy()
+
+            if len(x_plot) == 0:
                 continue
             pow_series[key] = dict(
-                values=tps_per_min,
+                x=x_plot,
+                y=y_plot,
                 label=PROTOCOLS[key]['label'],
                 color=PROTOCOLS[key]['color'],
+                completion=(x_plot[-1], y_plot[-1]),
             )
 
         if len(pow_series) == 0:
             print(f"   [WARN] No protocol data for {network}")
             return
 
-        combined_keys = [key for key in PROTOCOLS.keys() if key != POW_DEEP_KEY and key in pow_series]
+        combined_keys = [
+            key for key in PROTOCOLS.keys()
+            if key != POW_DEEP_KEY and key in pow_series
+        ]
         panel_specs = []
         if combined_keys:
-            panel_specs.append((combined_keys, POW_COMBINED_AXIS_CONFIG))
+            panel_specs.append((combined_keys, ""))
         if POW_DEEP_KEY in pow_series:
-            panel_specs.append(([POW_DEEP_KEY], POW_AXIS_CONFIG[POW_DEEP_KEY]))
+            panel_specs.append(([POW_DEEP_KEY], ""))
         if not panel_specs:
             print(f"   [WARN] No grouped protocol data for {network}")
             return
@@ -242,54 +278,113 @@ def plot_throughput_stability(network: str, out_dir: str):
             1,
             figsize=DEFAULT_FIGSIZE,
             sharey=False,
+            sharex=False,
             gridspec_kw={
                 'hspace': POW_PANEL_HSPACE,
                 'height_ratios': [len(keys) for keys, _axis_config in panel_specs],
             },
         )
         axes = np.atleast_1d(axes)
+        ax1 = axes[0]
+        legend_handles = []
+        legend_labels = []
+        legend_bbox = (0.985, 0.965)
+        legend_ncol = 2
+        legend_font_size_final = 15
 
-        for ax, (panel_keys, axis_config) in zip(axes, panel_specs):
-            data_list = [pow_series[key]['values'] for key in panel_keys]
-            labels = [pow_series[key]['label'] for key in panel_keys]
-            colors = [pow_series[key]['color'] for key in panel_keys]
-            positions = np.arange(len(panel_keys), 0, -1)
+        for ax, (panel_keys, title) in zip(axes, panel_specs):
+            group_max = 0.0
+            group_x_max = 0.0
+            panel_legend_handles = []
+            panel_legend_labels = []
+            for key in panel_keys:
+                item = pow_series[key]
+                zorder = 10 if key == 'committee' else 1
+                alpha = 0.9 if key == 'committee' else 0.78
+                lw = POW_LINE_WIDTH_FAST if key == 'committee' else POW_LINE_WIDTH_BASELINE
+                line, = ax.plot(
+                    item['x'],
+                    item['y'],
+                    label=item['label'],
+                    color=item['color'],
+                    linewidth=lw,
+                    alpha=alpha,
+                    zorder=zorder,
+                )
+                panel_legend_handles.append(line)
+                panel_legend_labels.append(item['label'])
 
-            bplot = ax.boxplot(
-                data_list,
-                vert=False,
-                positions=positions,
-                patch_artist=True,
-                tick_labels=labels,
-                showfliers=False,
-                whis=(10, 90),
-                showmeans=True,
-                widths=0.62,
-                meanprops=dict(marker='D', markerfacecolor='white', markeredgecolor='black', markersize=4),
-                medianprops=dict(color='black', linewidth=1.6),
-                boxprops=dict(linewidth=1.2),
-                whiskerprops=dict(linewidth=1.2),
-                capprops=dict(linewidth=1.2),
-                flierprops=dict(marker='o', markersize=4, markeredgecolor='gray', alpha=0.8)
-            )
-            for patch, color in zip(bplot['boxes'], colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.65)
+                finite_y = item['y'][np.isfinite(item['y'])]
+                if finite_y.size > 0:
+                    group_max = max(group_max, float(finite_y.max()))
+                if key not in POW_RANGE_IGNORED_KEYS:
+                    finite_x = item['x'][np.isfinite(item['x'])]
+                    if finite_x.size > 0:
+                        group_x_max = max(group_x_max, float(finite_x.max()))
 
-            ax.set_xlim(*axis_config["xlim"])
-            ax.set_xticks(axis_config["ticks"])
-            ax.set_xticklabels(axis_config["labels"])
-            ax.set_ylim(0.4, len(panel_keys) + 0.6)
-            ax.tick_params(axis='y', left=False, labelsize=POW_PANEL_TITLE_SIZE)
-            ax.tick_params(axis='x', labelsize=POW_PANEL_TICK_LABEL_SIZE)
-            ax.grid(True, axis='x', linestyle='--', alpha=0.45)
+                x0, y0 = item['completion']
+                ax.vlines(
+                    x=x0,
+                    ymin=0,
+                    ymax=y0,
+                    colors=item['color'],
+                    linewidth=POW_VLINE_WIDTH,
+                    alpha=0.9,
+                    zorder=6,
+                )
 
-        fig.text(0.5, 0.04, "Throughput (TPS)", ha='center', va='center', fontsize=AXIS_LABEL_SIZE)
+            y_upper, y_step = get_nice_throughput_axis(group_max)
+            if panel_keys == [POW_DEEP_KEY]:
+                x_upper, x_step = X_MAX_SECONDS / SECONDS_PER_MINUTE, X_TICK_MINUTES
+            else:
+                x_upper, x_step = get_nice_time_axis(group_x_max)
+            ax.set_xlim(0, x_upper)
+            ax.xaxis.set_major_locator(MultipleLocator(x_step))
+            ax.xaxis.set_major_formatter(FuncFormatter(format_time_to_min))
+            ax.set_ylim(0, y_upper)
+            ax.yaxis.set_major_locator(MultipleLocator(y_step))
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, pos: format_panel_tick(value)))
+            ax.tick_params(axis='both', labelsize=POW_PANEL_TICK_LABEL_SIZE)
+            ax.grid(True)
+            if title:
+                ax.text(
+                    0.985,
+                    0.82,
+                    title,
+                    transform=ax.transAxes,
+                    fontsize=POW_PANEL_TITLE_SIZE,
+                    ha='right',
+                    va='center',
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.75, pad=1.5),
+                )
+
+            if panel_legend_handles:
+                ax.legend(
+                    panel_legend_handles,
+                    panel_legend_labels,
+                    loc='upper right',
+                    ncol=2 if len(panel_legend_handles) > 1 else 1,
+                    fontsize=legend_font_size_final,
+                    frameon=True,
+                    edgecolor='gray',
+                    facecolor='white',
+                    framealpha=0.85,
+                )
+
+        axes[-1].set_xlabel("Time (min)", fontsize=AXIS_LABEL_SIZE, labelpad=8)
+
+        fig.text(
+            0.055,
+            0.50,
+            "Throughput (TPS)",
+            ha='center',
+            va='center',
+            rotation='vertical',
+            fontsize=AXIS_LABEL_SIZE,
+        )
 
         fig.subplots_adjust(**POW_BOXPLOT_MARGINS)
 
-        legend_handles = []
-        legend_labels = []
         x_label = ""
         x_label_font_size = AXIS_LABEL_SIZE
 
@@ -427,9 +522,9 @@ def plot_throughput_stability(network: str, out_dir: str):
             handles, 
             labels, 
             loc='upper right', 
-            bbox_to_anchor=(0.985, 0.93),
-            ncol=1, 
-            fontsize=21,
+            bbox_to_anchor=legend_bbox,
+            ncol=legend_ncol, 
+            fontsize=legend_font_size_final,
             frameon=True,
             edgecolor='gray',
             facecolor='white',
