@@ -19,9 +19,9 @@ PROTOCOLS = {
     "daon":        {"label": "DAON",       "color": "#56B4E9", "z": 1,  "lw": 2.5, "marker": "s"}, 
 }
 
-L_SIZE, T_SIZE, LEG_SIZE = 24, 20, 14
+L_SIZE, T_SIZE, LEG_SIZE = 28, 24, 14
 DEFAULT_FIGSIZE = (8, 6)
-FIGURE_MARGINS = dict(left=0.18, right=0.97, bottom=0.18, top=0.96)
+FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.20, top=0.96)
 
 def format_scientific(x, _):
     if abs(x) >= 1000:

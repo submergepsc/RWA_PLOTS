@@ -31,16 +31,18 @@ PROTOCOLS: Dict[str, Dict[str, str]] = {
 }
 
 # 样式配置 (保留原脚本高字号)
-AXIS_LABEL_SIZE = 24
-TICK_LABEL_SIZE = 20
+AXIS_LABEL_SIZE = 28
+TICK_LABEL_SIZE = 24
 LEGEND_FONT_SIZE = 14
 DEFAULT_FIGSIZE = (8, 6)
 SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
-POW_BOXPLOT_MARGINS = dict(left=0.17, right=0.96, bottom=0.15, top=0.88)
+POW_BOXPLOT_MARGINS = dict(left=0.22, right=0.96, bottom=0.16, top=0.88)
 POW_PANEL_TITLE_SIZE = 20
-POW_PANEL_TICK_LABEL_SIZE = 18
-POW_PANEL_HSPACE = 0.30
+POW_PANEL_TICK_LABEL_SIZE = 24
+POW_PANEL_HSPACE = 0.24
+POW_PANEL_LEGEND_FONT_SIZE = 21
+POW_DEEP_PANEL_HEIGHT_RATIO = 1.6
 POW_DEEP_KEY = "deepthought"
 POW_COMBINED_Y_TICK_STEP = 20.0
 POW_DEEP_Y_TICK_STEP = 0.10
@@ -48,9 +50,9 @@ POW_RANGE_IGNORED_KEYS = {"decentruth"}
 POW_LINE_WIDTH_FAST = 2.2
 POW_LINE_WIDTH_BASELINE = 1.6
 POW_VLINE_WIDTH = 1.4
-POS_FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.95)
-POS_AXIS_LABEL_SIZE = 24
-POS_TICK_LABEL_SIZE = 20
+POS_FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.18, top=0.95)
+POS_AXIS_LABEL_SIZE = 28
+POS_TICK_LABEL_SIZE = 24
 POS_LEGEND_FONT_SIZE = 14
 POS_ANNOTATION_FONT_SIZE = 18
 POS_LINE_WIDTH_FAST = 2.2
@@ -283,7 +285,10 @@ def plot_throughput_stability(network: str, out_dir: str):
             sharex=False,
             gridspec_kw={
                 'hspace': POW_PANEL_HSPACE,
-                'height_ratios': [len(keys) for keys, _axis_config in panel_specs],
+                'height_ratios': [
+                    POW_DEEP_PANEL_HEIGHT_RATIO if keys == [POW_DEEP_KEY] else len(keys)
+                    for keys, _axis_config in panel_specs
+                ],
             },
         )
         axes = np.atleast_1d(axes)
@@ -292,7 +297,7 @@ def plot_throughput_stability(network: str, out_dir: str):
         legend_labels = []
         legend_bbox = (0.985, 0.965)
         legend_ncol = 2
-        legend_font_size_final = 15
+        legend_font_size_final = POW_PANEL_LEGEND_FONT_SIZE
 
         for ax, (panel_keys, title) in zip(axes, panel_specs):
             group_max = 0.0
@@ -477,11 +482,11 @@ def plot_throughput_stability(network: str, out_dir: str):
             edge_color = PROTOCOLS[selected_key]['color'] if selected_key in PROTOCOLS else 'black'
             ax1.scatter(
                 [x0], [y0],
-                s=90,
+                s=200,
                 facecolors='none',
                 edgecolors='black',
-                linewidths=1.4,
-                zorder=20,
+                linewidths=1.5,
+                zorder=40,
             )
             ax1.scatter(
                 [x0], [y0],
