@@ -23,17 +23,17 @@ FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "03_throughput"
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#DF3156"},
-    "deepthought": {"label": "Deep.", "color": "#4A0080"},
-    "seenfeed": {"label": "Sen.", "color": "#E69F00"},
-    "decentruth": {"label": "DECEN.", "color": "#009E73"},
-    "daon": {"label": "DAON", "color": "#56B4E9"},
+    "committee": {"label": "FastOracle[15]", "color": "#DF3156"},
+    "deepthought": {"label": "Deep.[14]", "color": "#4A0080"},
+    "seenfeed": {"label": "Sen.[11]", "color": "#E69F00"},
+    "decentruth": {"label": "DECEN.[13]", "color": "#009E73"},
+    "daon": {"label": "DAON[12]", "color": "#56B4E9"},
 }
 
 # 样式配置 (保留原脚本高字号)
 AXIS_LABEL_SIZE = 28
 TICK_LABEL_SIZE = 24
-LEGEND_FONT_SIZE = 14
+LEGEND_FONT_SIZE = 16
 DEFAULT_FIGSIZE = (8, 6)
 SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
@@ -41,7 +41,7 @@ POW_BOXPLOT_MARGINS = dict(left=0.22, right=0.96, bottom=0.16, top=0.88)
 POW_PANEL_TITLE_SIZE = 20
 POW_PANEL_TICK_LABEL_SIZE = 24
 POW_PANEL_HSPACE = 0.24
-POW_PANEL_LEGEND_FONT_SIZE = 21
+POW_PANEL_LEGEND_FONT_SIZE = 18
 POW_DEEP_PANEL_HEIGHT_RATIO = 1.6
 POW_DEEP_KEY = "deepthought"
 POW_COMBINED_Y_TICK_STEP = 20.0
@@ -53,7 +53,7 @@ POW_VLINE_WIDTH = 1.4
 POS_FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.18, top=0.95)
 POS_AXIS_LABEL_SIZE = 28
 POS_TICK_LABEL_SIZE = 24
-POS_LEGEND_FONT_SIZE = 14
+POS_LEGEND_FONT_SIZE = 18
 POS_ANNOTATION_FONT_SIZE = 18
 POS_LINE_WIDTH_FAST = 2.2
 POS_LINE_WIDTH_BASELINE = 1.6
@@ -104,7 +104,7 @@ ANNOTATION_BOX_STYLE = dict(
 ANNOTATION_ARROW_STYLE = dict(arrowstyle='->', color='black', lw=1.5)
 X_MAX_SECONDS = 22000
 SECONDS_PER_MINUTE = 60
-X_TICK_MINUTES = 40
+X_TICK_MINUTES = 60
 
 # ================= 辅助函数 =================
 
@@ -203,12 +203,12 @@ def plot_throughput_stability(network: str, out_dir: str):
 
     mask = df_tps['time'] > bios_val
     x_vals = (df_tps.loc[mask, 'time'] - bios_val) / SECONDS_PER_MINUTE
-    x_label = "Time (min)"
+    x_label = "RunTime (min)"
     legend_handles = None
     legend_labels = None
     legend_bbox = (0.985, 0.93)
     legend_ncol = 1
-    legend_font_size_final = 21
+    legend_font_size_final = LEGEND_FONT_SIZE
     x_label_font_size = AXIS_LABEL_SIZE
     legend_font_size = LEGEND_FONT_SIZE
 
@@ -376,7 +376,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                     framealpha=0.85,
                 )
 
-        axes[-1].set_xlabel("Time (min)", fontsize=AXIS_LABEL_SIZE, labelpad=8)
+        axes[-1].set_xlabel("RunTime (min)", fontsize=AXIS_LABEL_SIZE, labelpad=8)
 
         fig.text(
             0.055,
@@ -434,7 +434,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                     completion_points[key] = (x_plot[-1], y_plot[-1])
 
         ax1.set_xlim(0, X_MAX_SECONDS / SECONDS_PER_MINUTE)
-        ax1.set_xlabel("Time (min)", fontsize=POS_AXIS_LABEL_SIZE, labelpad=8)
+        ax1.set_xlabel("RunTime (min)", fontsize=POS_AXIS_LABEL_SIZE, labelpad=8)
         ax1.set_ylabel("Throughput (TPS)", fontsize=POS_AXIS_LABEL_SIZE)
         ax1.xaxis.set_major_locator(MultipleLocator(X_TICK_MINUTES))
         ax1.xaxis.set_major_formatter(FuncFormatter(format_time_to_min))
@@ -454,14 +454,14 @@ def plot_throughput_stability(network: str, out_dir: str):
                 zorder=6,
             )
 
-        # 恢复说明框与箭头（保持原样）
-        box_pos = (0.45, 0.64)
+        # 恢复说明框与箭头（按选项 A 向下微调位置以避开图例）
+        box_pos = (0.45, 0.50)
         box_anchor_points = {
-            'committee': (0.46, 0.67),
-            'deepthought': (0.44, 0.77),
-            'seenfeed': (0.42, 0.70),
-            'decentruth': (0.46, 0.70),
-            'daon': (0.35, 0.74),
+            'committee': (0.46, 0.54),
+            'deepthought': (0.44, 0.64),
+            'seenfeed': (0.42, 0.57),
+            'decentruth': (0.46, 0.57),
+            'daon': (0.35, 0.61),
         }
         fig.text(
             box_pos[0],
@@ -512,6 +512,29 @@ def plot_throughput_stability(network: str, out_dir: str):
             fig.add_artist(arrow)
 
         fig.subplots_adjust(**POS_FIGURE_MARGINS)
+
+        # 为 POS 图在右侧创建两列图例（ncol=2），避免使用全局 fig.legend
+        handles_all, labels_all = ax1.get_legend_handles_labels()
+        if handles_all:
+            ax1.legend(
+                handles_all,
+                labels_all,
+                loc='upper right',
+                bbox_to_anchor=(0.98, 0.95),
+                ncol=2,
+                fontsize=POS_LEGEND_FONT_SIZE,
+                frameon=True,
+                edgecolor='gray',
+                facecolor='white',
+                framealpha=0.85,
+                columnspacing=1.0,
+                labelspacing=0.3,
+                handlelength=1.6,
+            )
+
+        # 清空后续全局图例句柄，避免重复绘制全局图例
+        legend_handles = []
+        legend_labels = []
 
     # ================= 统一图例修改 (全局右上角) =================
     
