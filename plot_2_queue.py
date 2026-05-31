@@ -12,16 +12,16 @@ FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "02_queue"
 
 PROTOCOLS = { 
-    "committee":   {"label": "FastOracle", "color": "#DF3156", "z": 10, "lw": 4,   "marker": "o"}, 
-    "deepthought": {"label": "Deep.",      "color": "#4A0080", "z": 1,  "lw": 2.5, "marker": "v"}, 
-    "seenfeed":    {"label": "Sen.",       "color": "#E69F00", "z": 1,  "lw": 2.5, "marker": "D"}, 
-    "decentruth":  {"label": "DECEN.",     "color": "#009E73", "z": 1,  "lw": 2.5, "marker": "^"}, 
-    "daon":        {"label": "DAON",       "color": "#56B4E9", "z": 1,  "lw": 2.5, "marker": "s"}, 
+    "committee":   {"label": "FastOracle[15]", "color": "#DF3156", "z": 10, "lw": 4,   "marker": "o"}, 
+    "deepthought": {"label": "Deep.[14]",      "color": "#4A0080", "z": 1,  "lw": 2.5, "marker": "v"}, 
+    "seenfeed":    {"label": "Sen.[11]",       "color": "#E69F00", "z": 1,  "lw": 2.5, "marker": "D"}, 
+    "decentruth":  {"label": "DECEN.[13]",     "color": "#009E73", "z": 1,  "lw": 2.5, "marker": "^"}, 
+    "daon":        {"label": "DAON[12]",       "color": "#56B4E9", "z": 1,  "lw": 2.5, "marker": "s"}, 
 }
 
 L_SIZE, T_SIZE, LEG_SIZE = 28, 24, 14
 DEFAULT_FIGSIZE = (8, 6)
-FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.20, top=0.96)
+FIGURE_MARGINS = dict(left=0.20, right=0.97, bottom=0.18, top=0.96)
 
 def format_scientific(x, _):
     if abs(x) >= 1000:
@@ -105,14 +105,14 @@ def plot_queue_dynamics(network: str, out_dir: str):
     crop_limit = max(max_time_others * 1.05, min_crop_limit)
     ax.set_xlim(1, crop_limit)
 
-    max_y = 26000 if network == 'pow' else 26000
+    max_y = 28000
     ax.set_ylim(top=max_y)
 
     print(f"   [Crop] {network.upper()} X-axis cropped at {crop_limit:.1f} min.")
 
     # 3. 装饰
-    ax.set_xlabel("Time (min)")
-    ax.set_ylabel("Queue Length")
+    ax.set_xlabel("Runtime (min)")
+    ax.set_ylabel("Queue length")
     ax.set_xscale("log")
     ax.xaxis.set_major_locator(FixedLocator([1, 10, 100, 1000, 10000]))
     ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs=(2.0, 5.0)))
@@ -123,12 +123,12 @@ def plot_queue_dynamics(network: str, out_dir: str):
 
     handles, labels = ax.get_legend_handles_labels()
     legend_items = [
-        ("FastOracle", True),
-        ("Deep.", True),
+        ("FastOracle[15]", True),
+        ("Deep.[14]", True),
         ("", False),
-        ("DECEN.", True),
-        ("DAON", True),
-        ("Sen.", True)
+        ("DECEN.[13]", True),
+        ("DAON[12]", True),
+        ("Sen.[11]", True)
     ]
     ordered_handles = []
     ordered_labels = []
@@ -157,7 +157,7 @@ def plot_queue_dynamics(network: str, out_dir: str):
         borderaxespad=0.3,
         handlelength=2.0
     )
-    leg.set_zorder(1)
+    leg.set_zorder(0)
 
     fig.subplots_adjust(**FIGURE_MARGINS)
 

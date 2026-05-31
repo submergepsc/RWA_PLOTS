@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 Plot 5: RWA-FastOracle 证书生成时间 CDF (Certificate Generation CDF)
+修改：X轴单位由 秒(s) 改为 分钟(min)
 说明: 
 1. 彻底修复箭头坐标系飞出的 bug：拆分文本和箭头，全量使用 data 坐标系绝对定位。
 """
 
 import os
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter, MultipleLocator
+from matplotlib.ticker import FuncFormatter, MultipleLocator, FixedLocator
 import pandas as pd
 import numpy as np
 from typing import Dict
@@ -19,24 +20,25 @@ DATA_DIR = "."
 FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "04_certificate"
 PEAK_ANNOTATION_ARROW_KEY = "committee"
+SECONDS_PER_MINUTE = 60  # 秒转分钟系数
 
 # 定义协议配置
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "committee": {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
-    "deepthought": {"label": "Deep.", "color": "#4A0080", "marker": "v"},
-    "seenfeed": {"label": "Sen.", "color": "#E69F00", "marker": "D"},
-    "decentruth": {"label": "DECEN.", "color": "#009E73", "marker": "^"},
-    "daon": {"label": "DAON", "color": "#56B4E9", "marker": "s"},
+    "committee": {"label": "FastOracle[15]", "color": "#DF3156", "marker": "o"},
+    "deepthought": {"label": "Deep.[14]", "color": "#4A0080", "marker": "v"},
+    "seenfeed": {"label": "Sen.[11]", "color": "#E69F00", "marker": "D"},
+    "decentruth": {"label": "DECEN.[13]", "color": "#009E73", "marker": "^"},
+    "daon": {"label": "DAON[12]", "color": "#56B4E9", "marker": "s"},
 }
 
 # 【关键修改】：适合单栏排版的尺寸与字号
-AXIS_LABEL_SIZE = 24  # 坐标轴标题
-TICK_LABEL_SIZE = 20  # 坐标轴数字
+AXIS_LABEL_SIZE = 28  # 坐标轴标题
+TICK_LABEL_SIZE = 24  # 坐标轴数字
 LEGEND_FONT_SIZE = 21 # 图例字号
 DEFAULT_FIGSIZE = (8, 6) # 画布尺寸：8宽, 6高 (经典的 4:3 比例)
 
 SAVEFIG_KWARGS = {}
-FIGURE_MARGINS = dict(left=0.16, right=0.97, bottom=0.16, top=0.93)
+FIGURE_MARGINS = dict(left=0.22, right=0.96, bottom=0.16, top=0.93)
 MARKER_SIZE_OURS = 15
 MARKER_SIZE_OTHERS = 15
 PLATEAU_MARKERS_PER_SEGMENT = 4
@@ -70,7 +72,7 @@ def compute_shared_y_top(networks):
     return max_certs * 1.05
 
 def format_scientific(value: float, _position: int) -> str:
-    if abs(value) >= 1000:
+    if abs(value) >= 500:
         mantissa, exponent = f"{value:.1e}".split("e")
         return f"{float(mantissa):g}e{int(exponent)}"
     return f"{value:g}"
@@ -81,7 +83,7 @@ def format_integer(value: float, _position: int) -> str:
 # ================= 绘图核心逻辑 =================
 
 def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None):
-    print(f"-> Processing {network.upper()} certificate CDF (Hardcoded Coordinates)...")
+    print(f"-> Processing {network.upper()} certificate CDF (Time unit: minute)...")
     
     plt.rcParams.update({
         'font.family': 'sans-serif', 
@@ -113,7 +115,8 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
         if key in df.columns:
             data_col = df[key].dropna()
             if not data_col.empty:
-                max_times.append(data_col.max())
+                # 秒 -> 分钟
+                max_times.append(data_col.max() / SECONDS_PER_MINUTE)
     
     if not max_times:
         print("   No valid data found.")
@@ -130,16 +133,21 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
                 continue
             
             sorted_data = np.sort(data_col)
+            # 时间单位转换：秒 → 分钟
+            sorted_data_min = sorted_data / SECONDS_PER_MINUTE
             yvals = np.arange(1, len(sorted_data) + 1)
             
-            # Draw each protocol up to its own completion time first.
-            # The shared top plateau is rendered in colored segments later.
-            x_extended = np.concatenate(([0], sorted_data))
+            x_extended = np.concatenate(([0], sorted_data_min))
             y_extended = np.concatenate(([0], yvals))
             
             lw = 4.0 if key == 'committee' else 2.5
             alpha_line = 1.0 if key == 'committee' else 0.8
-            zorder = 10 if key == 'committee' else 2
+            if key == 'decentruth':
+                zorder = 11  # 最高层
+            elif key == 'committee':
+                zorder = 10
+            else:
+                zorder = 2
             marker_idx = get_marker_indices(len(x_extended), num_markers=10)
             
             ax.plot(x_extended, y_extended, label=config['label'], color=config['color'], 
@@ -147,12 +155,15 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
                     marker=config['marker'], markersize=MARKER_SIZE_OURS if key == 'committee' else MARKER_SIZE_OTHERS,
                     markevery=marker_idx, markeredgewidth=0.8, markeredgecolor='white')
 
-            peak_points[key] = (float(sorted_data[-1]), float(len(sorted_data)))
+            # 记录峰值坐标(分钟)
+            peak_x = float(sorted_data_min[-1])
+            peak_y = float(len(sorted_data))
+            peak_points[key] = (peak_x, peak_y)
             plateau_segments.append(
                 {
                     "key": key,
-                    "x_end": float(sorted_data[-1]),
-                    "y_end": float(len(sorted_data)),
+                    "x_end": peak_x,
+                    "y_end": peak_y,
                     "color": config["color"],
                     "zorder": zorder,
                     "lw": lw,
@@ -161,8 +172,7 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
                 }
             )
 
-    # Render the final horizontal plateau as colored segments by completion order.
-    # Each interval [x_i, x_{i+1}] uses protocol i's final color.
+    # 绘制顶部水平分段线
     if plateau_segments:
         plateau_segments.sort(key=lambda item: item["x_end"])
         for idx, seg in enumerate(plateau_segments):
@@ -187,10 +197,14 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
                     markeredgecolor='white',
                 )
 
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Number of Certificates")
-    ax.set_xlim(left=0, right=global_max_time)
-    ax.xaxis.set_major_locator(MultipleLocator(5000))
+    # ========== X轴标签改为分钟 ==========
+    ax.set_xlabel("Runtime (min)")
+    ax.set_ylabel("Number of certificates", labelpad=12)
+    # X轴范围（单位：分钟）
+    ax.set_xlim(left=0, right=global_max_time + (2000 / SECONDS_PER_MINUTE))
+    # 刻度间隔适配为分钟（原5000秒 → 换算为分钟）
+    ax.xaxis.set_major_locator(MultipleLocator(50))
+    ax.set_xticks([0, 50, 100, 150, 200, 250])
     ax.xaxis.set_major_formatter(FuncFormatter(format_scientific))
     ax.yaxis.set_major_formatter(FuncFormatter(format_scientific))
     
@@ -200,8 +214,8 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
     ax.set_ylim(bottom=0, top=y_top)
     
     ax.grid(True, linewidth=1.5)
-    ax.yaxis.set_major_locator(MultipleLocator(500))
-    ax.yaxis.set_major_formatter(FuncFormatter(format_integer))
+    ax.yaxis.set_major_locator(FixedLocator([500, 1000, 1500]))
+    ax.yaxis.set_major_formatter(FuncFormatter(format_scientific))
     ax.tick_params(axis='y', which='major', direction='out', length=7, width=1.4, pad=6)
 
     handles, labels = ax.get_legend_handles_labels()
@@ -235,28 +249,23 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
             return start_disp
         return min(candidates, key=lambda item: item[0])[1]
 
-    # ================= 【修复核心区】绝对数值定位 =================
+    # 标注与箭头（坐标已统一为分钟，无需额外修改）
     if peak_points:
-        # 绘制空心大圆圈强调
         if 'committee' in peak_points:
             x0, y0 = peak_points['committee']
             ax.scatter([x0], [y0], s=700, facecolors='none', edgecolors='black', linewidths=2.0, zorder=20)
 
-        # 获取 FastOracle 的数据点作为起点 (x0, y0)
         arrow_key = PEAK_ANNOTATION_ARROW_KEY if PEAK_ANNOTATION_ARROW_KEY in peak_points else next(iter(peak_points))
         x0, y0 = peak_points[arrow_key]
 
-        # 计算文本框的绝对坐标 (全用 data 坐标系)，并强制限制在坐标轴内部。
         x_text_data = np.clip(global_max_time * 0.52, 0.10 * global_max_time, 0.90 * global_max_time)
-        # Put the text box into the enlarged upper blank area.
         y_text_data = np.clip(y_top * 0.92, 0.20 * y_top, 0.97 * y_top)
 
-        # 1. 独立放置文本框
         text_artist = ax.text(
-            x=x_text_data, 
+            x=x_text_data + 21, 
             y=y_text_data,
             s="Peak certificates reached.",
-            fontsize=18,
+            fontsize=24,
             color='black',
             ha='center',
             va='center',
@@ -265,7 +274,6 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
             bbox=dict(boxstyle='round,pad=0.55', facecolor='white', edgecolor='black', alpha=1)
         )
 
-        # 2. Draw the arrow from the real text-box edge to the peak point.
         fig.canvas.draw()
         renderer = fig.canvas.get_renderer()
         text_bbox = text_artist.get_window_extent(renderer=renderer)
@@ -273,11 +281,15 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
         peak_disp = ax.transData.transform((x0, y0))
         arrow_start_disp = line_rectangle_edge(text_center_disp, peak_disp, text_bbox)
         arrow_start_data = ax.transData.inverted().transform(arrow_start_disp)
+        
+        # 箭头偏移量同步换算为分钟
+        offset1 = 270 / SECONDS_PER_MINUTE
+        offset2 = 3000 / SECONDS_PER_MINUTE
         ax.annotate(
             text="", 
-            xy=(x0+270, y0+50),                   # 终点 (数据点)
+            xy=(x0 + offset1, y0 + 50),
             xycoords='data',
-            xytext=(x0+3000, y0+300),
+            xytext=(x0 + offset2, y0 + 300),
             textcoords='data',
             annotation_clip=True,
             arrowprops=dict(
@@ -286,7 +298,7 @@ def plot_certificate_cdf(network: str, out_dir: str, shared_y_top: float = None)
                 lw=3.5,
                 mutation_scale=14,
                 shrinkA=0,
-                shrinkB=2                  # B端缩进：碰到边框即止
+                shrinkB=2
             )
         )
     

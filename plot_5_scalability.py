@@ -1,13 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*- 
-
-
-
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter, MultipleLocator
 from typing import Dict
 
 # ================= 全局配置 =================
@@ -21,36 +16,32 @@ SCENARIOS = {
 }
 
 PROTOCOLS: Dict[str, Dict[str, str]] = {
-    "daon":       {"label": "DAON",       "color": "#56B4E9", "marker": "s"},
-    "decentruth": {"label": "DECEN.",     "color": "#009E73", "marker": "^"},
-    "committee":  {"label": "FastOracle", "color": "#DF3156", "marker": "o"},
-    "seenfeed":   {"label": "Sen.",       "color": "#E69F00", "marker": "D"},
-    "deepthought":{"label": "Deep.",      "color": "#4A0080", "marker": "v"},
+    "daon":       {"label": "DAON[12]",       "color": "#56B4E9", "marker": "s"},
+    "decentruth": {"label": "DECEN.[13]",     "color": "#009E73", "marker": "^"},
+    "committee":  {"label": "FastOracle[15]", "color": "#DF3156", "marker": "o"},
+    "seenfeed":   {"label": "Sen.[11]",       "color": "#E69F00", "marker": "D"},
+    "deepthought":{"label": "Deep.[14]",      "color": "#4A0080", "marker": "v"},
 }
 
-AXIS_LABEL_SIZE = 25.6
-TICK_LABEL_SIZE = AXIS_LABEL_SIZE
-LEGEND_FONT_SIZE = AXIS_LABEL_SIZE
+AXIS_LABEL_SIZE = 28
+TICK_LABEL_SIZE = 24
+LEGEND_FONT_SIZE = 32
 DEFAULT_FIGSIZE = (12, 7)
 
-# 格式化函数
-def scientific_formatter(x, pos):
-    if abs(x) < 1000:
-        return f'{int(x)}'
-
-    exponent = int(np.floor(np.log10(abs(x))))
-    mantissa = x / (10 ** exponent)
-    mantissa_text = f'{mantissa:.1f}'.rstrip('0').rstrip('.')
-    return f'{mantissa_text}e{exponent}'
+def clean_sci_formatter(x, pos):
+    if x == 0:
+        return '0'
+    exp = np.floor(np.log10(abs(x)))
+    val = x / (10 ** exp)
+    if val.is_integer():
+        return f"{int(val)}e{int(exp)}"
+    return f"{val:.1f}e{int(exp)}"
 
 # ================= 绘图核心逻辑 =================
-
 def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, global_max_x: float):
     print(f"   -> Processing {scenario} with Log-Y optimization...")
     
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-    
-    # 【修改 1】移除对数坐标，使用线性坐标
     
     max_x_limit = 0
     max_y_limit = 0
@@ -63,22 +54,23 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
             x_raw = valid_data.values
             y_raw = valid_data.index.values # 索引为时间
 
-            # 【修改 2】解决垂直线：截断处理完成后多余的计时
             max_val = x_raw.max()
             stop_idx = np.where(x_raw == max_val)[0][0] 
             x_data = x_raw[:stop_idx + 1]
             y_data = y_raw[:stop_idx + 1]
 
-            # 【修改 3】按照 x 轴距离均匀采样，绘制更稠密点
-            interval = 2000  # 每 20 个单位一个点，更稠密
+            interval = 2000
             x_sampled = np.arange(0, x_data.max() + interval, interval)
             y_sampled = np.interp(x_sampled, x_data, y_data)
 
             is_ours = (method == 'committee')
-            is_deep_pos = (method == 'deepthought' and scenario == 'pos')
+            is_deep = (method == 'deepthought')
+            is_decentruth = (method == 'decentruth')
 
-            if is_deep_pos:
-                zorder_val = 15
+            if is_decentruth:
+                zorder_val = 30  # decen 在图例上面
+            elif is_deep:
+                zorder_val = 25  # deep 在图例上面
             elif is_ours:
                 zorder_val = 10
             else:
@@ -96,29 +88,39 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
             max_x_limit = max(max_x_limit, x_data.max())
             max_y_limit = max(max_y_limit, y_data.max())
 
-    # --- 坐标轴格式化 ---
-    ax.set_xlabel("Processed Request Number", fontsize=AXIS_LABEL_SIZE, labelpad=15)
-    ax.set_ylabel("Cumulative Process Latency", fontsize=AXIS_LABEL_SIZE, labelpad=15)
-    ax.xaxis.set_major_formatter(FuncFormatter(scientific_formatter))
-    ax.yaxis.set_major_formatter(FuncFormatter(scientific_formatter))
+    ax.set_xlabel("Processed request number", fontsize=AXIS_LABEL_SIZE, labelpad=15)
+    ax.set_ylabel("Cumulative process latency", fontsize=AXIS_LABEL_SIZE*0.8, labelpad=15)
     
-    # 【修改 4】Y轴刻度优化，使用线性刻度
-    ax.yaxis.set_major_locator(plt.MaxNLocator(6))
-    ax.yaxis.set_minor_locator(plt.MaxNLocator(12))
+    # ✅ X 轴干净科学计数法
+    ax.xaxis.set_major_formatter(FuncFormatter(clean_sci_formatter))
+    
+    ax.xaxis.set_major_locator(MultipleLocator(5000))
+    y_interval = 10000 if scenario == "pos" else 4000
+    ax.yaxis.set_major_locator(MultipleLocator(y_interval))
 
     ax.tick_params(axis='both', which='major', labelsize=TICK_LABEL_SIZE, width=2, length=12)
     ax.tick_params(axis='both', which='minor', width=1, length=6)
 
-    # 范围调整
+    # ✅ Y 轴干净科学计数法
+    ax.yaxis.set_major_formatter(FuncFormatter(clean_sci_formatter))
+
     ax.set_xlim(0, global_max_x * 1.05)
     if scenario == "pow":
-        ax.set_ylim(0, max_y_limit * 0.016)
+        ax.set_ylim(0, max_y_limit * 0.016 * 1.15)
+    else:
+        ax.set_ylim(0, max_y_limit * 1.15)
     
     ax.grid(True, which="both", linestyle='--', linewidth=1.2, alpha=0.3)
-    legend_loc = 'upper left' if scenario == 'pow' else 'upper left'
-    ax.legend(loc=legend_loc, fontsize=LEGEND_FONT_SIZE, frameon=True, framealpha=0.9, ncol=2,handlelength=1.2, handleheight=0.6, columnspacing=-0.8, handletextpad=0.5)
+    legend_loc = 'upper left'
+    # loc 保持 upper left，配合 bbox_to_anchor 右移
+    leg = ax.legend(loc='upper left', 
+                bbox_to_anchor=(0.05, 0.95),  # 控制位置：x增大 → 右移；y微调上下
+                fontsize=LEGEND_FONT_SIZE * 0.8, 
+                frameon=True, framealpha=0.9, 
+                ncol=2, handlelength=1.2, handleheight=0.6, 
+                columnspacing=-0.8, handletextpad=0.5)
+    leg.set_zorder(20)
 
-    # 美化边框
     for spine in ['top', 'right']: ax.spines[spine].set_visible(False)
     for spine in ['left', 'bottom']: ax.spines[spine].set_linewidth(2)
 
@@ -128,12 +130,10 @@ def plot_scalability_optimized(df: pd.DataFrame, scenario: str, out_dir: str, gl
     plt.close()
 
 # ================= 主程序 =================
-
 if __name__ == "__main__":
     target_dir = os.path.join(FIGURES_ROOT, SUB_DIR_NAME)
     os.makedirs(target_dir, exist_ok=True)
     
-    # 计算全局最大 x 值
     global_max_x = 0
     for name, path in SCENARIOS.items():
         if os.path.exists(path):
@@ -144,5 +144,3 @@ if __name__ == "__main__":
         if os.path.exists(path):
             df_in = pd.read_csv(path, index_col=0)
             plot_scalability_optimized(df_in, name, target_dir, global_max_x)
-
-#    print(f"\n[Done] Y轴标签已更新为 cumulative process latency。")
