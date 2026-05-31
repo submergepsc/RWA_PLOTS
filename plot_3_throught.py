@@ -33,7 +33,7 @@ PROTOCOLS: Dict[str, Dict[str, str]] = {
 # 样式配置 (保留原脚本高字号)
 AXIS_LABEL_SIZE = 28
 TICK_LABEL_SIZE = 24
-LEGEND_FONT_SIZE = 16
+LEGEND_FONT_SIZE = 20
 DEFAULT_FIGSIZE = (8, 6)
 SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
@@ -53,7 +53,7 @@ POW_VLINE_WIDTH = 1.4
 POS_FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.18, top=0.95)
 POS_AXIS_LABEL_SIZE = 28
 POS_TICK_LABEL_SIZE = 24
-POS_LEGEND_FONT_SIZE = 18
+POS_LEGEND_FONT_SIZE = 20
 POS_ANNOTATION_FONT_SIZE = 18
 POS_LINE_WIDTH_FAST = 2.2
 POS_LINE_WIDTH_BASELINE = 1.6
@@ -483,9 +483,9 @@ def plot_throughput_stability(network: str, out_dir: str):
             ax1.scatter(
                 [x0], [y0],
                 s=200,
-                facecolors='none',
-                edgecolors='black',
-                linewidths=1.5,
+                    facecolors='none',
+                    edgecolors='black',
+                    linewidths=2.2,
                 zorder=40,
             )
             ax1.scatter(
@@ -499,29 +499,29 @@ def plot_throughput_stability(network: str, out_dir: str):
 
             arrow_target = box_anchor_points.get(selected_key, box_pos)
             arrow = ConnectionPatch(
-                xyA=(x0, y0),
-                coordsA='data',
-                axesA=ax1,
-                xyB=arrow_target,
-                coordsB=fig.transFigure,
-                arrowstyle='<-',
+                xyA=arrow_target,        # 原来的终点变成起点
+                coordsA=fig.transFigure, # 与原来的 coordsB 对应
+                xyB=(x0, y0),             # 原来的起点变成终点
+                coordsB='data',          # 与原来的 coordsA 对应
+                axesB=ax1,
+                arrowstyle='->,head_length=1,head_width=0.5',
                 color='black',
-                lw=1.0,
+                lw=2.2,
                 shrinkB=4,
             )
             fig.add_artist(arrow)
 
         fig.subplots_adjust(**POS_FIGURE_MARGINS)
 
-        # 为 POS 图在右侧创建两列图例（ncol=2），避免使用全局 fig.legend
+        # 为 POS 图在右侧创建单列图例（ncol=1），避免使用全局 fig.legend
         handles_all, labels_all = ax1.get_legend_handles_labels()
         if handles_all:
             ax1.legend(
                 handles_all,
                 labels_all,
                 loc='upper right',
-                bbox_to_anchor=(0.98, 0.95),
-                ncol=2,
+                bbox_to_anchor=(0.98, 1.02),
+            ncol=1,
                 fontsize=POS_LEGEND_FONT_SIZE,
                 frameon=True,
                 edgecolor='gray',
