@@ -21,7 +21,6 @@ from typing import Dict
 DATA_DIR = "." 
 FIGURES_ROOT = "figures"
 PLOT_TYPE_NAME = "03_throughput"
-
 PROTOCOLS: Dict[str, Dict[str, str]] = {
     "committee": {"label": "FastOracle[15]", "color": "#DF3156"},
     "deepthought": {"label": "Deep.[14]", "color": "#4A0080"},
@@ -32,9 +31,10 @@ PROTOCOLS: Dict[str, Dict[str, str]] = {
 
 # 样式配置 (保留原脚本高字号)
 AXIS_LABEL_SIZE = 28
-TICK_LABEL_SIZE = 24
+TICK_LABEL_SIZE = 30
 LEGEND_FONT_SIZE = 20
-DEFAULT_FIGSIZE = (8, 6)
+POW_FIGSIZE = (8, 6)
+POS_FIGSIZE = (8, 6)    
 SAVEFIG_KWARGS = {} 
 FIGURE_MARGINS = dict(left=0.12, right=0.97, bottom=0.16, top=0.93)
 POW_BOXPLOT_MARGINS = dict(left=0.22, right=0.96, bottom=0.16, top=0.88)
@@ -54,7 +54,7 @@ POS_FIGURE_MARGINS = dict(left=0.22, right=0.97, bottom=0.18, top=0.95)
 POS_AXIS_LABEL_SIZE = 28
 POS_TICK_LABEL_SIZE = 24
 POS_LEGEND_FONT_SIZE = 20
-POS_ANNOTATION_FONT_SIZE = 18
+POS_ANNOTATION_FONT_SIZE = 24
 POS_LINE_WIDTH_FAST = 2.2
 POS_LINE_WIDTH_BASELINE = 1.6
 POS_VLINE_WIDTH = 1.5
@@ -88,12 +88,12 @@ POW_AXIS_CONFIG = {
     "daon": {
         "xlim": (0.0, 38.0),
         "ticks": [0, 13, 25, 38],
-        "labels": ["0.00", "13", "25", "38"],
+        "labels": ["0.0", "13", "25", "38"],
     },
 }
 ANNOTATION_TEXT = "All requests\nhave been handled"
 ANNOTATION_TEXT_COLOR = "black"
-ANNOTATION_FONT_SIZE = 18
+ANNOTATION_FONT_SIZE = 28
 ANNOTATION_BOX_STYLE = dict(
     boxstyle='round,pad=0.75',
     facecolor='white',
@@ -121,11 +121,13 @@ def format_tick_to_k(value: float, _position: int) -> str:
     return f"{value:g}"
 
 def format_panel_tick(value: float) -> str:
+    if abs(value) < 1e-12:
+        return "0"
     if abs(value) >= 10:
         return f"{value:.0f}"
     if abs(value) >= 1:
         return f"{value:.1f}"
-    return f"{value:.2f}"
+    return f"{value:.1f}"
 
 def get_nice_throughput_axis(max_value: float) -> tuple[float, float]:
     if max_value <= 0:
@@ -188,7 +190,7 @@ def plot_throughput_stability(network: str, out_dir: str):
         'xtick.labelsize': TICK_LABEL_SIZE,
         'ytick.labelsize': TICK_LABEL_SIZE,
         'legend.fontsize': LEGEND_FONT_SIZE,
-        'grid.linestyle': '--', 
+        'grid.linestyle': '--',
         'grid.alpha': 0.6
     })
 
@@ -203,7 +205,7 @@ def plot_throughput_stability(network: str, out_dir: str):
 
     mask = df_tps['time'] > bios_val
     x_vals = (df_tps.loc[mask, 'time'] - bios_val) / SECONDS_PER_MINUTE
-    x_label = "RunTime (min)"
+    x_label = "Runtime (min)"
     legend_handles = None
     legend_labels = None
     legend_bbox = (0.985, 0.93)
@@ -280,7 +282,7 @@ def plot_throughput_stability(network: str, out_dir: str):
         fig, axes = plt.subplots(
             len(panel_specs),
             1,
-            figsize=DEFAULT_FIGSIZE,
+            figsize=POW_FIGSIZE,
             sharey=False,
             sharex=False,
             gridspec_kw={
@@ -376,7 +378,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                     framealpha=0.85,
                 )
 
-        axes[-1].set_xlabel("RunTime (min)", fontsize=AXIS_LABEL_SIZE, labelpad=8)
+        axes[-1].set_xlabel("Runtime (min)", fontsize=AXIS_LABEL_SIZE, labelpad=8)
 
         fig.text(
             0.055,
@@ -397,7 +399,7 @@ def plot_throughput_stability(network: str, out_dir: str):
     # 场景 B: PoS (横向断轴 - 左右分割)
     # ---------------------------------------------------------
     else:
-        fig, ax1 = plt.subplots(figsize=DEFAULT_FIGSIZE)
+        fig, ax1 = plt.subplots(figsize=POS_FIGSIZE)
         x_label = ""
         x_label_font_size = POS_AXIS_LABEL_SIZE
         legend_font_size = POS_LEGEND_FONT_SIZE
@@ -434,7 +436,7 @@ def plot_throughput_stability(network: str, out_dir: str):
                     completion_points[key] = (x_plot[-1], y_plot[-1])
 
         ax1.set_xlim(0, X_MAX_SECONDS / SECONDS_PER_MINUTE)
-        ax1.set_xlabel("RunTime (min)", fontsize=POS_AXIS_LABEL_SIZE, labelpad=8)
+        ax1.set_xlabel("Runtime (min)", fontsize=POS_AXIS_LABEL_SIZE, labelpad=8)
         ax1.set_ylabel("Throughput (TPS)", fontsize=POS_AXIS_LABEL_SIZE)
         ax1.xaxis.set_major_locator(MultipleLocator(X_TICK_MINUTES))
         ax1.xaxis.set_major_formatter(FuncFormatter(format_time_to_min))
@@ -455,7 +457,7 @@ def plot_throughput_stability(network: str, out_dir: str):
             )
 
         # 恢复说明框与箭头（按选项 A 向下微调位置以避开图例）
-        box_pos = (0.45, 0.50)
+        box_pos = (0.55, 0.50)
         box_anchor_points = {
             'committee': (0.46, 0.54),
             'deepthought': (0.44, 0.64),
